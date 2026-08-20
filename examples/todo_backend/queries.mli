@@ -39,6 +39,13 @@ module List_todos : sig
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+
+  val fold :
+    (module Caqti_lwt.CONNECTION) ->
+    params ->
+    init:'a ->
+    f:(row -> 'a -> 'a) ->
+    ('a, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 end
 
 module Get_todo : sig
@@ -56,6 +63,13 @@ module Get_todo : sig
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+
+  val fold :
+    (module Caqti_lwt.CONNECTION) ->
+    params ->
+    init:'a ->
+    f:(row -> 'a -> 'a) ->
+    ('a, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 end
 
 module Patch_todo : sig
@@ -76,6 +90,13 @@ module Patch_todo : sig
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+
+  val fold :
+    (module Caqti_lwt.CONNECTION) ->
+    params ->
+    init:'a ->
+    f:(row -> 'a -> 'a) ->
+    ('a, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 end
 
 module Delete_todo : sig

@@ -43,6 +43,26 @@ func normalizedDBType(value string) string {
 	return name
 }
 
+func qualifiedName(catalog, schema, name string) string {
+	parts := make([]string, 0, 3)
+	for _, part := range []string{catalog, schema, name} {
+		if part != "" {
+			parts = append(parts, strings.ToLower(part))
+		}
+	}
+	return strings.Join(parts, ".")
+}
+
+func (g *gen) enumFor(col *plugin.Column) (enumInfo, bool) {
+	if col != nil && col.Type != nil {
+		if info, ok := g.enums[qualifiedName(col.Type.Catalog, col.Type.Schema, col.Type.Name)]; ok {
+			return info, true
+		}
+	}
+	info, ok := g.enums[dbType(col)]
+	return info, ok
+}
+
 func (g *gen) matchingOverride(col *plugin.Column, dbType string) (mappedType, bool) {
 	nullable := !col.NotNull
 	bestScore := -1
@@ -96,7 +116,7 @@ func (g *gen) mapType(col *plugin.Column) (mappedType, error) {
 		return mappedType{}, fmt.Errorf("only one-dimensional PostgreSQL arrays are supported (column %q has %d dimensions)", col.Name, col.ArrayDims)
 	}
 	if col.IsArray || col.ArrayDims == 1 {
-		mt, err := g.mapArray(name, col.Name)
+		mt, err := g.mapArray(col)
 		if err != nil {
 			return mappedType{}, err
 		}
@@ -111,8 +131,8 @@ func (g *gen) mapType(col *plugin.Column) (mappedType, error) {
 		mt, ok = postgresTypes[name]
 	}
 	if !ok {
-		if enum, exists := g.enums[name]; exists {
-			mt = mappedType{snake(enum.Name), snake(enum.Name) + "_type"}
+		if enum, exists := g.enumFor(col); exists {
+			mt = mappedType{enum.TypeName, enum.TypeName + "_type"}
 			ok = true
 		}
 	}
@@ -126,7 +146,8 @@ func (g *gen) mapType(col *plugin.Column) (mappedType, error) {
 	return mt, nil
 }
 
-func (g *gen) mapArray(name, column string) (mappedType, error) {
+func (g *gen) mapArray(col *plugin.Column) (mappedType, error) {
+	name, column := dbType(col), col.Name
 	var ocaml, encode, decode string
 	switch name {
 	case "int2", "smallint":
@@ -144,8 +165,9 @@ func (g *gen) mapArray(name, column string) (mappedType, error) {
 	case "uuid":
 		ocaml, encode, decode = "Uuidm.t", "Uuidm.to_string", "(fun s -> match Uuidm.of_string s with Some x -> Ok x | None -> Error (\"invalid uuid: \" ^ s))"
 	default:
-		if enum, ok := g.enums[name]; ok {
-			ocaml, encode = snake(enum.Name), "(fun x -> match x with "
+		if info, ok := g.enumFor(col); ok {
+			enum := info.Enum
+			ocaml, encode = info.TypeName, "(fun x -> match x with "
 			for _, value := range enum.Vals {
 				encode += fmt.Sprintf("| %s -> %q ", constructor(value), value)
 			}

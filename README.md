@@ -7,6 +7,8 @@
 - PostgreSQL
 - `:one`, `:many`, `:exec`, and `:execrows`
 - generated parameter and result records
+- Lwt or Async runtime support
+- constant-memory `fold` functions for `:many` queries
 - reusable table models and nested `sqlc.embed(...)` results
 - nullable scalar values
 - one-dimensional scalar array parameters and results
@@ -14,7 +16,7 @@
 - UUID, JSON/JSONB, dates, timestamps, PostgreSQL enums, and custom type overrides
 
 Multidimensional and nullable-element arrays, batch commands, SQLite/MySQL,
-Async/Eio, and streaming are deliberately outside this first release. Array
+and Eio are deliberately outside this first release. Array
 parameters may need an explicit SQL cast, for example `id = ANY($1::bigint[])`.
 Supported array elements are text/character types, booleans, integer and float
 types, UUIDs, and PostgreSQL enums. Empty arrays and quoted text containing
@@ -45,6 +47,7 @@ sql:
         out: lib/generated
         options:
           filename: queries
+          runtime: lwt # or async
           overrides:
             - db_type: numeric
               type: Decimal.t
@@ -58,6 +61,15 @@ sql:
 Each query is emitted as a module with `params`, optional `row`, and `execute`. Query parameters are always records, except a parameterless query uses `unit`.
 The `filename` also determines the enclosing OCaml compilation-unit name
 (`queries.ml` becomes `Queries`).
+The `runtime` option selects `Caqti_lwt.CONNECTION`/`Lwt.t` (the default) or
+`Caqti_async.CONNECTION`/`Async_kernel.Deferred.t`. A `:many` query also emits
+`fold`, which processes rows without first materializing the complete result
+list. Callers which need all rows can continue to use `execute`.
+
+Catalog objects are resolved by their catalog/schema/name identity. If two
+schemas contain a table or enum with the same name, generated OCaml type names
+are schema-prefixed (for example, `public_users` and `audit_users`). Unique
+names retain the previous unqualified output for backwards compatibility.
 
 Overrides select either `db_type` or `column`. A column may be written as
 `column`, `table.column`, `schema.table.column`, or
@@ -71,7 +83,9 @@ describe the non-null element.
 Queries.Find_user.execute db { id = 42L }
 ```
 
-The generated application needs `caqti-lwt`, `lwt`, `ptime`, `uuidm`, and `yojson`.
+Lwt output needs `caqti-lwt` and `lwt`; Async output needs `caqti-async` and
+`async_kernel`. Depending on the SQL types used, generated applications also
+need `ptime`, `uuidm`, and `yojson`.
 
 The MVP uses sqlc's supported JSON process-plugin wire format. This keeps the
 binary dependency-free and makes the protocol easy to inspect during early

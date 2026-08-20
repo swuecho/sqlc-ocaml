@@ -21,19 +21,24 @@ func TestGeneratedOCamlParses(t *testing.T) {
 	if _, err := exec.LookPath("ocamlc"); err != nil {
 		t.Skip("ocamlc is not installed")
 	}
-	resp, err := Generate(request())
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir := t.TempDir()
-	for _, file := range resp.Files {
-		path := filepath.Join(dir, file.Name)
-		if err := os.WriteFile(path, file.Contents, 0o600); err != nil {
+	for _, runtime := range []string{"lwt", "async"} {
+		r := request()
+		options, _ := json.Marshal(Options{Runtime: runtime})
+		r.PluginOptions = options
+		resp, err := Generate(r)
+		if err != nil {
 			t.Fatal(err)
 		}
-		cmd := exec.Command("ocamlc", "-stop-after", "parsing", "-c", path)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("%s does not parse: %v\n%s", file.Name, err, out)
+		dir := t.TempDir()
+		for _, file := range resp.Files {
+			path := filepath.Join(dir, file.Name)
+			if err := os.WriteFile(path, file.Contents, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command("ocamlc", "-stop-after", "parsing", "-c", path)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("%s %s does not parse: %v\n%s", runtime, file.Name, err, out)
+			}
 		}
 	}
 }
@@ -60,7 +65,7 @@ func TestGenerateMVP(t *testing.T) {
 	}
 	ml := string(resp.Files[0].Contents)
 	mli := string(resp.Files[1].Contents)
-	for _, want := range []string{"module Find_user = struct", "email : string option;", "status : user_status;", "->!", "->*", "->.", "Db.collect_list"} {
+	for _, want := range []string{"module Find_user = struct", "email : string option;", "status : user_status;", "->!", "->*", "->.", "Db.collect_list", "let fold", "Db.fold request"} {
 		if !strings.Contains(ml, want) {
 			t.Errorf("ML missing %q", want)
 		}
@@ -71,6 +76,66 @@ func TestGenerateMVP(t *testing.T) {
 	for _, want := range []string{"module Find_user : sig", "(row, [> Caqti_error.call_or_retrieve ]) result Lwt.t", "(unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t"} {
 		if !strings.Contains(mli, want) {
 			t.Errorf("MLI missing %q", want)
+		}
+	}
+}
+
+func TestGenerateAsyncRuntime(t *testing.T) {
+	r := request()
+	b, _ := json.Marshal(Options{Filename: "queries", Runtime: "async"})
+	r.PluginOptions = b
+	resp, err := Generate(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ml, mli := string(resp.Files[0].Contents), string(resp.Files[1].Contents)
+	for _, want := range []string{"Caqti_async.CONNECTION", "Async_kernel.Deferred.map", "Db.fold request"} {
+		if !strings.Contains(ml, want) {
+			t.Errorf("generated Async ML missing %q", want)
+		}
+	}
+	for _, want := range []string{"Caqti_async.CONNECTION", "Async_kernel.Deferred.t", "val fold"} {
+		if !strings.Contains(mli, want) {
+			t.Errorf("generated Async MLI missing %q", want)
+		}
+	}
+	if strings.Contains(ml, "Caqti_lwt") || strings.Contains(mli, "Lwt.t") {
+		t.Fatal("Async output unexpectedly depends on Lwt")
+	}
+}
+
+func TestRejectsUnknownRuntime(t *testing.T) {
+	r := request()
+	b, _ := json.Marshal(Options{Runtime: "effects"})
+	r.PluginOptions = b
+	if _, err := Generate(r); err == nil || !strings.Contains(err.Error(), "invalid runtime") {
+		t.Fatalf("unexpected runtime validation error: %v", err)
+	}
+}
+
+func TestSchemaQualifiedModelsAndEnums(t *testing.T) {
+	r := request()
+	publicUsers := &plugin.Table{Rel: &plugin.Identifier{Schema: "public", Name: "users"}, Columns: []*plugin.Column{col("id", "bigint", true)}}
+	auditUsers := &plugin.Table{Rel: &plugin.Identifier{Schema: "audit", Name: "users"}, Columns: []*plugin.Column{col("id", "bigint", true)}}
+	r.Catalog.Schemas = []*plugin.Schema{
+		{Name: "public", Tables: []*plugin.Table{publicUsers}, Enums: []*plugin.Enum{{Name: "status", Vals: []string{"active"}}}},
+		{Name: "audit", Tables: []*plugin.Table{auditUsers}, Enums: []*plugin.Enum{{Name: "status", Vals: []string{"recorded"}}}},
+	}
+	r.Queries = []*plugin.Query{{
+		Name: "GetUsers", Cmd: ":one", Text: "SELECT 1",
+		Columns: []*plugin.Column{
+			{Name: "public_user", EmbedTable: &plugin.Identifier{Schema: "public", Name: "users"}},
+			{Name: "audit_user", EmbedTable: &plugin.Identifier{Schema: "audit", Name: "users"}},
+		},
+	}}
+	resp, err := Generate(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ml := string(resp.Files[0].Contents)
+	for _, want := range []string{"type public_users = {", "type audit_users = {", "type public_status =", "type audit_status =", "public_user : public_users;", "audit_user : audit_users;"} {
+		if !strings.Contains(ml, want) {
+			t.Errorf("schema-qualified output missing %q\n%s", want, ml)
 		}
 	}
 }
@@ -289,7 +354,7 @@ func TestNames(t *testing.T) {
 }
 
 func TestQualifiedPostgresType(t *testing.T) {
-	g := &gen{overrides: map[string]mappedType{}, enums: map[string]*plugin.Enum{}}
+	g := &gen{overrides: map[string]mappedType{}, enums: map[string]enumInfo{}}
 	mapped, err := g.mapType(col("completed", "pg_catalog.bool", true))
 	if err != nil {
 		t.Fatal(err)
@@ -302,7 +367,10 @@ func TestQualifiedPostgresType(t *testing.T) {
 func TestNormalizedIR(t *testing.T) {
 	r := request()
 	r.Queries[0].Filename = "users.sql"
-	g := &gen{req: r, overrides: map[string]mappedType{}, enums: map[string]*plugin.Enum{"user_status": r.Catalog.Schemas[0].Enums[0]}}
+	g := &gen{req: r, overrides: map[string]mappedType{}, enums: map[string]enumInfo{
+		"public.user_status": {Enum: r.Catalog.Schemas[0].Enums[0], Schema: "public", TypeName: "user_status"},
+		"user_status":        {Enum: r.Catalog.Schemas[0].Enums[0], Schema: "public", TypeName: "user_status"},
+	}, enumList: []enumInfo{{Enum: r.Catalog.Schemas[0].Enums[0], Schema: "public", TypeName: "user_status"}}}
 	program, err := g.normalize()
 	if err != nil {
 		t.Fatal(err)
@@ -341,7 +409,7 @@ func TestNormalizedIR(t *testing.T) {
 func TestNormalizeRejectsMissingParameterMetadata(t *testing.T) {
 	r := request()
 	r.Queries[0].Params[0].Column = nil
-	g := &gen{req: r, overrides: map[string]mappedType{}, enums: map[string]*plugin.Enum{}}
+	g := &gen{req: r, overrides: map[string]mappedType{}, enums: map[string]enumInfo{}}
 	if _, err := g.normalize(); err == nil || !strings.Contains(err.Error(), "has no column metadata") {
 		t.Fatalf("unexpected error: %v", err)
 	}

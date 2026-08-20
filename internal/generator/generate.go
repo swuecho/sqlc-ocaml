@@ -24,6 +24,7 @@ type overrideRule struct {
 }
 type Options struct {
 	Filename  string     `json:"filename"`
+	Runtime   string     `json:"runtime"`
 	Overrides []Override `json:"overrides"`
 }
 type gen struct {
@@ -31,15 +32,22 @@ type gen struct {
 	opts          Options
 	overrides     map[string]mappedType
 	overrideRules []overrideRule
-	enums         map[string]*plugin.Enum
+	enums         map[string]enumInfo
+	enumList      []enumInfo
 	models        map[string]Record
+}
+
+type enumInfo struct {
+	Enum     *plugin.Enum
+	Schema   string
+	TypeName string
 }
 
 func Generate(req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
 	if req.Settings == nil || req.Settings.Engine != "postgresql" {
 		return nil, fmt.Errorf("only the postgresql engine is supported")
 	}
-	opts := Options{Filename: "queries"}
+	opts := Options{Filename: "queries", Runtime: "lwt"}
 	if len(req.PluginOptions) > 0 {
 		if err := json.Unmarshal(req.PluginOptions, &opts); err != nil {
 			return nil, fmt.Errorf("invalid plugin options: %w", err)
@@ -48,8 +56,14 @@ func Generate(req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
 	if opts.Filename == "" {
 		opts.Filename = "queries"
 	}
+	if opts.Runtime == "" {
+		opts.Runtime = "lwt"
+	}
+	if opts.Runtime != "lwt" && opts.Runtime != "async" {
+		return nil, fmt.Errorf("invalid runtime %q (supported: lwt, async)", opts.Runtime)
+	}
 	opts.Filename = strings.TrimSuffix(strings.TrimSuffix(opts.Filename, ".ml"), ".mli")
-	g := &gen{req: req, opts: opts, overrides: map[string]mappedType{}, enums: map[string]*plugin.Enum{}, models: map[string]Record{}}
+	g := &gen{req: req, opts: opts, overrides: map[string]mappedType{}, enums: map[string]enumInfo{}, models: map[string]Record{}}
 	for _, o := range opts.Overrides {
 		if (o.DBType == "") == (o.Column == "") || o.Type == "" || o.Codec == "" {
 			return nil, fmt.Errorf("each override requires exactly one of db_type or column, plus type and codec")
@@ -61,9 +75,24 @@ func Generate(req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
 		}
 	}
 	if req.Catalog != nil {
+		counts := map[string]int{}
 		for _, s := range req.Catalog.Schemas {
 			for _, e := range s.Enums {
-				g.enums[strings.ToLower(e.Name)] = e
+				counts[strings.ToLower(e.Name)]++
+			}
+		}
+		for _, s := range req.Catalog.Schemas {
+			for _, e := range s.Enums {
+				typeName := snake(e.Name)
+				if counts[strings.ToLower(e.Name)] > 1 {
+					typeName = snake(s.Name + "_" + e.Name)
+				}
+				info := enumInfo{Enum: e, Schema: s.Name, TypeName: typeName}
+				g.enumList = append(g.enumList, info)
+				g.enums[qualifiedName("", s.Name, e.Name)] = info
+				if counts[strings.ToLower(e.Name)] == 1 {
+					g.enums[strings.ToLower(e.Name)] = info
+				}
 			}
 		}
 	}
@@ -335,15 +364,22 @@ func (g *gen) renderQuery(ml, mli *bytes.Buffer, q Query) {
 	if len(q.Params.Fields) == 0 {
 		paramArg = "_params"
 	}
+	connection, fiber, mapResult := "Caqti_lwt.CONNECTION", "Lwt.t", "|> Lwt.map (Result.map "
+	if g.opts.Runtime == "async" {
+		connection, fiber, mapResult = "Caqti_async.CONNECTION", "Async_kernel.Deferred.t", "|> Async_kernel.Deferred.map ~f:(Result.map "
+	}
 	if q.Cardinality == Exec || q.Cardinality == ExecRows {
-		fmt.Fprintf(ml, "  let execute (module Db : Caqti_lwt.CONNECTION) (%s : params) =\n    Db.%s request %s\n", paramArg, method, input)
+		fmt.Fprintf(ml, "  let execute (module Db : %s) (%s : params) =\n    Db.%s request %s\n", connection, paramArg, method, input)
 	} else {
 		mapper := rowMapper(*q.Row)
-		fmt.Fprintf(ml, "  let execute (module Db : Caqti_lwt.CONNECTION) (%s : params) =\n    Db.%s request %s\n    |> Lwt.map (Result.map ", paramArg, method, input)
+		fmt.Fprintf(ml, "  let execute (module Db : %s) (%s : params) =\n    Db.%s request %s\n    %s", connection, paramArg, method, input, mapResult)
 		if q.Cardinality == Many {
 			fmt.Fprintf(ml, "(List.map %s))\n", mapper)
 		} else {
 			fmt.Fprintf(ml, "%s)\n", mapper)
+		}
+		if q.Cardinality == Many {
+			fmt.Fprintf(ml, "\n  let fold (module Db : %s) (%s : params) ~init ~f =\n    Db.fold request (fun raw acc -> f (%s raw) acc) %s init\n", connection, paramArg, mapper, input)
 		}
 	}
 	fmt.Fprint(ml, "end\n\n")
@@ -351,7 +387,11 @@ func (g *gen) renderQuery(ml, mli *bytes.Buffer, q Query) {
 	if q.Cardinality == ExecRows {
 		errorType = "[> Caqti_error.call_or_retrieve | `Unsupported ]"
 	}
-	fmt.Fprintf(mli, "\n  val execute :\n    (module Caqti_lwt.CONNECTION) ->\n    params ->\n    (%s, %s) result Lwt.t\nend\n\n", result, errorType)
+	fmt.Fprintf(mli, "\n  val execute :\n    (module %s) ->\n    params ->\n    (%s, %s) result %s\n", connection, result, errorType, fiber)
+	if q.Cardinality == Many {
+		fmt.Fprintf(mli, "\n  val fold :\n    (module %s) ->\n    params ->\n    init:'a ->\n    f:(row -> 'a -> 'a) ->\n    ('a, %s) result %s\n", connection, errorType, fiber)
+	}
+	fmt.Fprint(mli, "end\n\n")
 }
 
 func renderRecord(ml, mli *bytes.Buffer, record Record) {

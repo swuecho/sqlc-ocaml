@@ -105,6 +105,9 @@ module List_todos = struct
   let execute (module Db : Caqti_lwt.CONNECTION) (_params : params) =
     Db.collect_list request ()
     |> Lwt.map (Result.map (List.map (fun ((((v_id, v_title), v_tags), v_completed), v_created_at) -> { id = v_id; title = v_title; tags = v_tags; completed = v_completed; created_at = v_created_at })))
+
+  let fold (module Db : Caqti_lwt.CONNECTION) (_params : params) ~init ~f =
+    Db.fold request (fun raw acc -> f ((fun ((((v_id, v_title), v_tags), v_completed), v_created_at) -> { id = v_id; title = v_title; tags = v_tags; completed = v_completed; created_at = v_created_at }) raw) acc) () init
 end
 
 module List_todos_by_ids = struct
@@ -126,6 +129,9 @@ module List_todos_by_ids = struct
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.collect_list request params.ids
     |> Lwt.map (Result.map (List.map (fun ((((v_id, v_title), v_tags), v_completed), v_created_at) -> { id = v_id; title = v_title; tags = v_tags; completed = v_completed; created_at = v_created_at })))
+
+  let fold (module Db : Caqti_lwt.CONNECTION) (params : params) ~init ~f =
+    Db.fold request (fun raw acc -> f ((fun ((((v_id, v_title), v_tags), v_completed), v_created_at) -> { id = v_id; title = v_title; tags = v_tags; completed = v_completed; created_at = v_created_at }) raw) acc) params.ids init
 end
 
 module Complete_todo = struct

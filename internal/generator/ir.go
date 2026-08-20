@@ -89,33 +89,51 @@ func (g *gen) normalize() (Program, error) {
 	if g.models == nil {
 		g.models = map[string]Record{}
 	}
-	keys := make([]string, 0, len(g.enums))
-	for key := range g.enums {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		e := g.enums[key]
-		item := Enum{DatabaseName: e.Name, TypeName: snake(e.Name), CodecName: snake(e.Name) + "_type"}
+	enums := append([]enumInfo(nil), g.enumList...)
+	sort.Slice(enums, func(i, j int) bool {
+		return qualifiedName("", enums[i].Schema, enums[i].Enum.Name) < qualifiedName("", enums[j].Schema, enums[j].Enum.Name)
+	})
+	for _, info := range enums {
+		e := info.Enum
+		item := Enum{DatabaseName: e.Name, TypeName: info.TypeName, CodecName: info.TypeName + "_type"}
 		for _, value := range e.Vals {
 			item.Values = append(item.Values, EnumValue{DatabaseName: value, Constructor: constructor(value)})
 		}
 		program.Enums = append(program.Enums, item)
 	}
 	if g.req.Catalog != nil {
+		tableCounts := map[string]int{}
+		for _, schema := range g.req.Catalog.Schemas {
+			for _, table := range schema.Tables {
+				if table != nil && table.Rel != nil {
+					tableCounts[strings.ToLower(table.Rel.Name)]++
+				}
+			}
+		}
 		for _, schema := range g.req.Catalog.Schemas {
 			for _, table := range schema.Tables {
 				if table == nil || table.Rel == nil || table.Rel.Schema == "pg_catalog" || table.Rel.Schema == "information_schema" {
 					continue
 				}
-				model, err := g.normalizeRecord(snake(table.Rel.Name), table.Columns)
+				typeName := snake(table.Rel.Name)
+				if tableCounts[strings.ToLower(table.Rel.Name)] > 1 {
+					typeName = snake(schema.Name + "_" + table.Rel.Name)
+				}
+				model, err := g.normalizeRecord(typeName, table.Columns)
 				if err != nil {
 					return Program{}, fmt.Errorf("table %s: %w", table.Rel.Name, err)
 				}
-				if _, exists := g.models[table.Rel.Name]; exists {
+				key := qualifiedName(table.Rel.Catalog, table.Rel.Schema, table.Rel.Name)
+				if table.Rel.Schema == "" {
+					key = qualifiedName(table.Rel.Catalog, schema.Name, table.Rel.Name)
+				}
+				if _, exists := g.models[key]; exists {
 					return Program{}, fmt.Errorf("duplicate table model name %q", table.Rel.Name)
 				}
-				g.models[table.Rel.Name] = model
+				g.models[key] = model
+				if tableCounts[strings.ToLower(table.Rel.Name)] == 1 {
+					g.models[strings.ToLower(table.Rel.Name)] = model
+				}
 				program.Models = append(program.Models, model)
 			}
 		}
@@ -203,7 +221,10 @@ func (g *gen) normalizeRow(columns []*plugin.Column) (Record, error) {
 			row.Fields[i] = Field{DatabaseName: column.Name, Name: names[i], Type: normalizedOCamlType(column, mapped)}
 			continue
 		}
-		model, ok := g.models[column.EmbedTable.Name]
+		model, ok := g.models[qualifiedName(column.EmbedTable.Catalog, column.EmbedTable.Schema, column.EmbedTable.Name)]
+		if !ok {
+			model, ok = g.models[strings.ToLower(column.EmbedTable.Name)]
+		}
 		if !ok {
 			return Record{}, fmt.Errorf("embedded table %q has no model metadata", column.EmbedTable.Name)
 		}

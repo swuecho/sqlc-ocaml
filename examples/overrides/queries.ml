@@ -41,5 +41,8 @@ module List_users = struct
   let execute (module Db : Caqti_lwt.CONNECTION) (_params : params) =
     Db.collect_list request ()
     |> Lwt.map (Result.map (List.map (fun ((v_id, v_display_name), v_email) -> { id = v_id; display_name = v_display_name; email = v_email })))
+
+  let fold (module Db : Caqti_lwt.CONNECTION) (_params : params) ~init ~f =
+    Db.fold request (fun raw acc -> f ((fun ((v_id, v_display_name), v_email) -> { id = v_id; display_name = v_display_name; email = v_email }) raw) acc) () init
 end
 

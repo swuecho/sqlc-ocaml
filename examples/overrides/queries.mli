@@ -35,5 +35,12 @@ module List_users : sig
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+
+  val fold :
+    (module Caqti_lwt.CONNECTION) ->
+    params ->
+    init:'a ->
+    f:(row -> 'a -> 'a) ->
+    ('a, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 end
 
