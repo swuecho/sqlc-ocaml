@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Go checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make check
+
+  ocaml:
+    name: Generated OCaml
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.2"
+          dune-cache: true
+
+      - name: Install OCaml dependencies
+        run: >-
+          opam install --yes
+          dune
+          ocamlfind
+          caqti-lwt
+          caqti-async
+          caqti-driver-postgresql
+          lwt
+          ptime
+          uuidm
+          yojson
+          uri
+          dream
+
+      - name: Parse generated Lwt and Async code
+        run: opam exec -- go test -count=1 ./internal/generator
+
+      - name: Build Lwt examples
+        run: |
+          (cd examples/todo && opam exec -- dune build)
+          (cd examples/todo_backend && opam exec -- dune build)
+          (cd examples/overrides && opam exec -- dune build)
+
+      - name: Compile generated Async code
+        run: |
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
+          go build -o bin/sqlc-gen-ocaml ./cmd/sqlc-gen-ocaml
+          sed -i '/filename: queries/a\          runtime: async' examples/basic/sqlc.yaml
+          (cd examples/basic && sqlc generate)
+          cd examples/basic/generated
+          opam exec -- ocamlfind ocamlc -package caqti-async,async_kernel,ptime,uuidm,yojson -c queries.mli
+          opam exec -- ocamlfind ocamlc -package caqti-async,async_kernel,ptime,uuidm,yojson -c queries.ml
