@@ -1,0 +1,15 @@
+version: "2"
+plugins:
+  - name: ocaml
+    process:
+      cmd: ../../bin/sqlc-gen-ocaml
+      format: json
+sql:
+  - engine: postgresql
+    schema: schema.sql
+    queries: queries.sql
+    codegen:
+      - plugin: ocaml
+        out: generated
+        options:
+          filename: queries

@@ -1,0 +1,3 @@
+(executable
+ (name main)
+ (libraries caqti-lwt.unix caqti-driver-postgresql lwt.unix ptime uri))

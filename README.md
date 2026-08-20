@@ -1,0 +1,115 @@
+# sqlc-ocaml
+
+`sqlc-ocaml` is an experimental [sqlc](https://sqlc.dev/) process plugin that generates typed OCaml modules for PostgreSQL queries using Caqti and Lwt.
+
+## MVP scope
+
+- PostgreSQL
+- `:one`, `:many`, `:exec`, and `:execrows`
+- generated parameter and result records
+- reusable table models and nested `sqlc.embed(...)` results
+- nullable scalar values
+- one-dimensional scalar array parameters and results
+- `.ml` and `.mli` output
+- UUID, JSON/JSONB, dates, timestamps, PostgreSQL enums, and custom type overrides
+
+Multidimensional and nullable-element arrays, batch commands, SQLite/MySQL,
+Async/Eio, and streaming are deliberately outside this first release. Array
+parameters may need an explicit SQL cast, for example `id = ANY($1::bigint[])`.
+Supported array elements are text/character types, booleans, integer and float
+types, UUIDs, and PostgreSQL enums. Empty arrays and quoted text containing
+commas, quotes, or backslashes are encoded and decoded.
+Repeated and out-of-order PostgreSQL placeholders are supported through an
+explicit typed parameter-occurrence plan;
+MVP queries must still reference every declared parameter at least once.
+
+## Build and configure
+
+```sh
+go build -o sqlc-gen-ocaml ./cmd/sqlc-gen-ocaml
+```
+
+```yaml
+version: "2"
+plugins:
+  - name: ocaml
+    process:
+      cmd: ./sqlc-gen-ocaml
+      format: json
+sql:
+  - engine: postgresql
+    schema: schema.sql
+    queries: queries.sql
+    codegen:
+      - plugin: ocaml
+        out: lib/generated
+        options:
+          filename: queries
+          overrides:
+            - db_type: numeric
+              type: Decimal.t
+              codec: Db_types.decimal
+            - column: users.email
+              nullable: true
+              type: Email.t
+              codec: Email.codec
+```
+
+Each query is emitted as a module with `params`, optional `row`, and `execute`. Query parameters are always records, except a parameterless query uses `unit`.
+The `filename` also determines the enclosing OCaml compilation-unit name
+(`queries.ml` becomes `Queries`).
+
+Overrides select either `db_type` or `column`. A column may be written as
+`column`, `table.column`, `schema.table.column`, or
+`catalog.schema.table.column`; `*.column` is also accepted. The optional
+`nullable` selector restricts a rule to nullable or non-nullable values.
+Column rules take precedence over database-type rules. Nullable values still
+receive the generated OCaml `option` wrapper, so override `type` and `codec`
+describe the non-null element.
+
+```ocaml
+Queries.Find_user.execute db { id = 42L }
+```
+
+The generated application needs `caqti-lwt`, `lwt`, `ptime`, `uuidm`, and `yojson`.
+
+The MVP uses sqlc's supported JSON process-plugin wire format. This keeps the
+binary dependency-free and makes the protocol easy to inspect during early
+development.
+
+## Generator architecture
+
+The generator normalizes sqlc's protocol objects into an internal typed
+representation before rendering OCaml:
+
+```text
+GenerateRequest
+    -> Program
+       -> Enum
+       -> Model
+       -> Query
+          -> Cardinality
+          -> Record
+             -> Field
+                -> OCamlType
+    -> .ml / .mli renderer
+```
+
+The normalization pass owns validation, naming, SQL placeholder rewriting,
+and PostgreSQL-to-OCaml type resolution. The renderer consumes only this IR;
+it does not inspect sqlc protocol objects.
+
+See [`examples/basic`](examples/basic) for a complete schema, query set, and
+sqlc configuration.
+
+[`examples/todo`](examples/todo) is a complete command-line application backed
+by a Dockerized PostgreSQL database exposed on port 5438. Run its full
+generation/build/database test with `make todo-e2e`.
+
+[`examples/todo_backend`](examples/todo_backend) is a Dream HTTP service that
+implements the Todo-Backend specification using the complete OCaml/sqlc/Caqti
+stack. Run it with `make todo-backend-e2e`.
+
+[`examples/overrides`](examples/overrides) demonstrates a nullable,
+column-specific custom type and codec with a compiled PostgreSQL round trip.
+Run it with `make overrides-e2e`; its database is exposed on port 5440.

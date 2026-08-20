@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: override_demo
+      POSTGRES_USER: override
+      POSTGRES_PASSWORD: override
+    ports:
+      - "5440:5432"
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U override -d override_demo"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  app:
+    build:
+      context: .
+    environment:
+      DATABASE_URL: postgresql://override:override@db:5432/override_demo
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["app"]

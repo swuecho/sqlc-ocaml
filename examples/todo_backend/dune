@@ -1,0 +1,4 @@
+(executable
+ (name main)
+ (libraries dream caqti-lwt.unix caqti-driver-postgresql lwt.unix yojson uri))
+
