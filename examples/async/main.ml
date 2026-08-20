@@ -2,7 +2,7 @@ open Async_kernel
 open Async_unix
 
 let database_url =
-  Sys.getenv_opt "DATABASE_URL"
+  Stdlib.Sys.getenv_opt "DATABASE_URL"
   |> Option.value ~default:"postgresql://async:async@localhost:5441/async_demo"
 
 let fail error = failwith (Caqti_error.show error)
