@@ -23,6 +23,37 @@ jobs:
           cache: true
       - run: make check
 
+  examples:
+    name: End-to-end examples
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run database-backed examples
+        run: |
+          make todo-e2e
+          make todo-backend-e2e
+          make overrides-e2e
+
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          docker compose -f examples/todo/compose.yaml logs --no-color || true
+          docker compose -f examples/todo_backend/compose.yaml logs --no-color || true
+          docker compose -f examples/overrides/compose.yaml logs --no-color || true
+
+      - name: Stop example containers
+        if: always()
+        run: |
+          docker compose -f examples/todo/compose.yaml down --volumes --remove-orphans
+          docker compose -f examples/todo_backend/compose.yaml down --volumes --remove-orphans
+          docker compose -f examples/overrides/compose.yaml down --volumes --remove-orphans
+
   ocaml:
     name: Generated OCaml
     runs-on: ubuntu-latest

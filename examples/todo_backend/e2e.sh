@@ -8,6 +8,16 @@ $compose up -d --build --wait
 $compose exec -T db psql -U todo -d todobackend -v ON_ERROR_STOP=1 \
   -c "TRUNCATE todos RESTART IDENTITY"
 
+attempt=0
+until curl -fsS "$api" >/dev/null; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge 30 ]; then
+    echo "Todo-Backend API did not become ready" >&2
+    exit 1
+  fi
+  sleep 1
+done
+
 curl -fsS -X DELETE "$api" >/dev/null
 created=$(curl -fsS -X POST -H 'Content-Type: application/json' \
   -d '{"title":"spec todo","order":10}' "$api")
