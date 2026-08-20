@@ -25,25 +25,9 @@ jobs:
       - run: make check
 
   examples:
-    name: Example (${{ matrix.name }})
+    name: End-to-end examples
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: todo
-            target: todo-e2e
-            directory: todo
-          - name: todo-backend
-            target: todo-backend-e2e
-            directory: todo_backend
-          - name: overrides
-            target: overrides-e2e
-            directory: overrides
-          - name: async
-            target: async-e2e
-            directory: async
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -52,18 +36,26 @@ jobs:
           cache: true
 
       - name: Run database-backed examples
-        run: make ${{ matrix.target }}
+        run: make examples-e2e
 
       - name: Check generated code is current
-        run: git diff --exit-code -- examples/${{ matrix.directory }}/queries.ml examples/${{ matrix.directory }}/queries.mli
+        run: git diff --exit-code -- examples
 
       - name: Show container logs on failure
         if: failure()
-        run: docker compose -f examples/${{ matrix.directory }}/compose.yaml logs --no-color || true
+        run: |
+          docker compose -f examples/todo/compose.yaml logs --no-color || true
+          docker compose -f examples/todo_backend/compose.yaml logs --no-color || true
+          docker compose -f examples/overrides/compose.yaml logs --no-color || true
+          docker compose -f examples/async/compose.yaml logs --no-color || true
 
       - name: Stop example containers
         if: always()
-        run: docker compose -f examples/${{ matrix.directory }}/compose.yaml down --volumes --remove-orphans || true
+        run: |
+          docker compose -f examples/todo/compose.yaml down --volumes --remove-orphans || true
+          docker compose -f examples/todo_backend/compose.yaml down --volumes --remove-orphans || true
+          docker compose -f examples/overrides/compose.yaml down --volumes --remove-orphans || true
+          docker compose -f examples/async/compose.yaml down --volumes --remove-orphans || true
 
   ocaml:
     name: Generated OCaml

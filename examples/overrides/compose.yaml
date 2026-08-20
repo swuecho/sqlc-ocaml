@@ -18,6 +18,8 @@ services:
   app:
     build:
       context: .
+      args:
+        EXAMPLE_BASE_IMAGE: ${EXAMPLE_BASE_IMAGE:-sqlc-ocaml-example-base:local}
     environment:
       DATABASE_URL: postgresql://override:override@db:5432/override_demo
     depends_on:

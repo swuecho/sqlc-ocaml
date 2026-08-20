@@ -4,6 +4,14 @@ set -eu
 api="http://localhost:8080/todos"
 compose="docker compose -f compose.yaml"
 
+cleanup() {
+  $compose down --volumes --remove-orphans >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 $compose up -d --build --wait
 $compose exec -T db psql -U todo -d todobackend -v ON_ERROR_STOP=1 \
   -c "TRUNCATE todos RESTART IDENTITY"

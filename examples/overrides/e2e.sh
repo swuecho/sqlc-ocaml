@@ -3,6 +3,14 @@ set -eu
 
 compose="docker compose -f compose.yaml"
 
+cleanup() {
+  $compose down --volumes --remove-orphans >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 $compose up -d --wait db
 $compose exec -T db psql -U override -d override_demo -v ON_ERROR_STOP=1 \
   -c "TRUNCATE users RESTART IDENTITY"

@@ -132,3 +132,8 @@ Run it with `make overrides-e2e`; its database is exposed on port 5440.
 1,000 PostgreSQL rows and verifies both list-returning `execute` and
 constant-memory `fold`. Run it with `make async-e2e`; its database is exposed
 on port 5441.
+
+Run every database-backed example with `make examples-e2e`. The example
+applications share the `sqlc-ocaml-example-base:local` Docker image, so the
+OCaml compiler and common dependencies are installed only once. Set
+`EXAMPLE_BASE_IMAGE` to use a differently tagged prebuilt image.

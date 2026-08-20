@@ -16,7 +16,10 @@ services:
       retries: 30
 
   api:
-    build: .
+    build:
+      context: .
+      args:
+        EXAMPLE_BASE_IMAGE: ${EXAMPLE_BASE_IMAGE:-sqlc-ocaml-example-base:local}
     environment:
       DATABASE_URL: postgresql://todo:todo@db:5432/todobackend
       PUBLIC_TODOS_URL: http://localhost:8080/todos
@@ -25,4 +28,3 @@ services:
     depends_on:
       db:
         condition: service_healthy
-

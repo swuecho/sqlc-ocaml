@@ -3,6 +3,14 @@ set -eu
 
 compose="docker compose -f compose.yaml"
 
+cleanup() {
+  $compose down --volumes --remove-orphans >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 $compose up -d --wait db
 $compose exec -T db psql -U todo -d todo -v ON_ERROR_STOP=1 \
   -c "ALTER TABLE todos ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}'; TRUNCATE todos RESTART IDENTITY"
