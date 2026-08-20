@@ -19,7 +19,11 @@ plugin-linux:
 	GOOS=linux GOARCH=$(PLUGIN_GOARCH) CGO_ENABLED=0 go build -o bin/sqlc-gen-ocaml-linux ./cmd/sqlc-gen-ocaml
 
 example-base:
-	docker build -t $(EXAMPLE_BASE_IMAGE) -f docker/example-base.Dockerfile .
+	@if [ "$(EXAMPLE_BASE_PREBUILT)" = "true" ]; then \
+		docker image inspect "$(EXAMPLE_BASE_IMAGE)" >/dev/null; \
+	else \
+		docker build -t "$(EXAMPLE_BASE_IMAGE)" -f docker/example-base.Dockerfile .; \
+	fi
 
 todo-generate: plugin-linux
 	docker run --rm -v "$(CURDIR):/src" -w /src/examples/todo sqlc/sqlc:$(SQLC_VERSION) generate
