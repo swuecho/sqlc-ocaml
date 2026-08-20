@@ -1,4 +1,4 @@
-.PHONY: build plugin-linux test check todo-generate todo-e2e todo-backend-generate todo-backend-e2e overrides-generate overrides-e2e
+.PHONY: build plugin-linux test check todo-generate todo-e2e todo-backend-generate todo-backend-e2e overrides-generate overrides-e2e async-generate async-e2e
 
 SQLC_VERSION ?= 1.30.0
 PLUGIN_GOARCH ?= $(shell go env GOARCH)
@@ -33,3 +33,9 @@ overrides-generate: plugin-linux
 
 overrides-e2e: overrides-generate
 	cd examples/overrides && ./e2e.sh
+
+async-generate: plugin-linux
+	docker run --rm -v "$(CURDIR):/src" -w /src/examples/async sqlc/sqlc:$(SQLC_VERSION) generate
+
+async-e2e: async-generate
+	cd examples/async && ./e2e.sh

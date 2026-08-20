@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: async_demo
+      POSTGRES_USER: async
+      POSTGRES_PASSWORD: async
+    ports:
+      - "5441:5432"
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U async -d async_demo"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  app:
+    build:
+      context: .
+    environment:
+      DATABASE_URL: postgresql://async:async@db:5432/async_demo
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["app"]

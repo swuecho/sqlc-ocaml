@@ -127,3 +127,8 @@ stack. Run it with `make todo-backend-e2e`.
 [`examples/overrides`](examples/overrides) demonstrates a nullable,
 column-specific custom type and codec with a compiled PostgreSQL round trip.
 Run it with `make overrides-e2e`; its database is exposed on port 5440.
+
+[`examples/async`](examples/async) runs generated code with Caqti Async against
+1,000 PostgreSQL rows and verifies both list-returning `execute` and
+constant-memory `fold`. Run it with `make async-e2e`; its database is exposed
+on port 5441.

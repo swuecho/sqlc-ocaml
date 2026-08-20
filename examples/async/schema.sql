@@ -1,0 +1,3 @@
+CREATE TABLE numbers (
+  value BIGINT PRIMARY KEY
+);

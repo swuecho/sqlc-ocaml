@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -24,9 +25,25 @@ jobs:
       - run: make check
 
   examples:
-    name: End-to-end examples
+    name: Example (${{ matrix.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: todo
+            target: todo-e2e
+            directory: todo
+          - name: todo-backend
+            target: todo-backend-e2e
+            directory: todo_backend
+          - name: overrides
+            target: overrides-e2e
+            directory: overrides
+          - name: async
+            target: async-e2e
+            directory: async
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -35,24 +52,18 @@ jobs:
           cache: true
 
       - name: Run database-backed examples
-        run: |
-          make todo-e2e
-          make todo-backend-e2e
-          make overrides-e2e
+        run: make ${{ matrix.target }}
+
+      - name: Check generated code is current
+        run: git diff --exit-code -- examples/${{ matrix.directory }}/queries.ml examples/${{ matrix.directory }}/queries.mli
 
       - name: Show container logs on failure
         if: failure()
-        run: |
-          docker compose -f examples/todo/compose.yaml logs --no-color || true
-          docker compose -f examples/todo_backend/compose.yaml logs --no-color || true
-          docker compose -f examples/overrides/compose.yaml logs --no-color || true
+        run: docker compose -f examples/${{ matrix.directory }}/compose.yaml logs --no-color || true
 
       - name: Stop example containers
         if: always()
-        run: |
-          docker compose -f examples/todo/compose.yaml down --volumes --remove-orphans
-          docker compose -f examples/todo_backend/compose.yaml down --volumes --remove-orphans
-          docker compose -f examples/overrides/compose.yaml down --volumes --remove-orphans
+        run: docker compose -f examples/${{ matrix.directory }}/compose.yaml down --volumes --remove-orphans || true
 
   ocaml:
     name: Generated OCaml
@@ -92,13 +103,4 @@ jobs:
           (cd examples/todo && opam exec -- dune build)
           (cd examples/todo_backend && opam exec -- dune build)
           (cd examples/overrides && opam exec -- dune build)
-
-      - name: Compile generated Async code
-        run: |
-          go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
-          go build -o bin/sqlc-gen-ocaml ./cmd/sqlc-gen-ocaml
-          sed -i '/filename: queries/a\          runtime: async' examples/basic/sqlc.yaml
-          (cd examples/basic && sqlc generate)
-          cd examples/basic/generated
-          opam exec -- ocamlfind ocamlc -package caqti-async,async_kernel,ptime,uuidm,yojson -c queries.mli
-          opam exec -- ocamlfind ocamlc -package caqti-async,async_kernel,ptime,uuidm,yojson -c queries.ml
+          (cd examples/async && opam exec -- dune build)
