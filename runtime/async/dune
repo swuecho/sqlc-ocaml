@@ -1,5 +1,4 @@
 (library
  (name sqlc_ocaml_runtime_async)
  (public_name sqlc-ocaml-runtime-async)
- (package sqlc-ocaml-runtime-async)
  (libraries caqti-async uri))

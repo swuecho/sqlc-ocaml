@@ -1,5 +1,4 @@
 (library
  (name sqlc_ocaml_runtime_lwt)
  (public_name sqlc-ocaml-runtime-lwt)
- (package sqlc-ocaml-runtime-lwt)
  (libraries caqti-lwt.unix lwt.unix uri))
