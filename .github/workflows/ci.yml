@@ -48,6 +48,11 @@ jobs:
           cache-from: type=gha,scope=sqlc-ocaml-example-base
           cache-to: type=gha,mode=max,scope=sqlc-ocaml-example-base
 
+      - name: Make loaded base available to Compose
+        run: |
+          docker buildx use default
+          docker image inspect sqlc-ocaml-example-base:local
+
       - name: Run database-backed examples
         run: EXAMPLE_BASE_PREBUILT=true make examples-e2e
 
