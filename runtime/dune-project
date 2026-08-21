@@ -1,0 +1,12 @@
+(lang dune 3.12)
+(name sqlc_ocaml_runtime)
+
+(package
+ (name sqlc-ocaml-runtime-lwt)
+ (synopsis "Caqti Lwt pool helpers for sqlc-generated OCaml code")
+ (depends ocaml dune caqti-lwt uri))
+
+(package
+ (name sqlc-ocaml-runtime-async)
+ (synopsis "Caqti Async pool helpers for sqlc-generated OCaml code")
+ (depends ocaml dune caqti-async uri))

@@ -1,6 +1,8 @@
 open Async_kernel
 open Async_unix
 
+module Runtime = Sqlc_ocaml_runtime_async
+
 let database_url =
   Stdlib.Sys.getenv_opt "DATABASE_URL"
   |> Option.value ~default:"postgresql://async:async@localhost:5441/async_demo"
@@ -29,10 +31,15 @@ let verify db =
           Writer.flushed stdout
 
 let main () =
-  Caqti_async.connect (Uri.of_string database_url)
+  let pool = Runtime.Pool.connect_uri_exn database_url in
+  Runtime.Pool.use
+    (fun db ->
+      verify db
+      >>| fun () -> Ok ())
+    pool
   >>= function
+  | Ok () -> return ()
   | Error error -> fail error
-  | Ok db -> verify db
 
 let scheduler_main () =
   don't_wait_for

@@ -19,3 +19,8 @@ RUN opam install -y \
       uri \
       uuidm \
       yojson
+
+COPY --chown=opam:opam runtime /home/opam/sqlc-ocaml-runtime
+RUN cd /home/opam/sqlc-ocaml-runtime \
+    && opam exec -- dune build @install \
+    && opam exec -- dune install

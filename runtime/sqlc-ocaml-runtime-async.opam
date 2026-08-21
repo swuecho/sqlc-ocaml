@@ -1,0 +1,17 @@
+opam-version: "2.0"
+synopsis: "Caqti Async pool helpers for sqlc-generated OCaml code"
+maintainer: "sqlc-ocaml maintainers"
+authors: "sqlc-ocaml contributors"
+homepage: "https://github.com/hwu/sqlc-ocaml"
+bug-reports: "https://github.com/hwu/sqlc-ocaml/issues"
+dev-repo: "git+https://github.com/hwu/sqlc-ocaml.git"
+build: [
+  ["dune" "subst"] {dev}
+  ["dune" "build" "-p" name "-j" jobs]
+]
+depends: [
+  "ocaml"
+  "dune" {>= "3.12"}
+  "caqti-async"
+  "uri"
+]

@@ -1,5 +1,7 @@
 open Lwt.Syntax
 
+module Runtime = Sqlc_ocaml_runtime_lwt
+
 let database_url =
   Sys.getenv_opt "DATABASE_URL"
   |> Option.value ~default:"postgresql://todo:todo@localhost:5439/todobackend"
@@ -8,10 +10,7 @@ let public_todos_url =
   Sys.getenv_opt "PUBLIC_TODOS_URL"
   |> Option.value ~default:"http://localhost:8080/todos"
 
-let pool =
-  match Caqti_lwt_unix.connect_pool (Uri.of_string database_url) with
-  | Ok pool -> pool
-  | Error error -> failwith (Caqti_error.show error)
+let pool = Runtime.Pool.connect_uri_exn database_url
 
 let cors_headers =
   [ ("Access-Control-Allow-Origin", "*");
@@ -29,7 +28,7 @@ let json ?(status = `OK) value =
 let error ?(status = `Bad_Request) message =
   json ~status (`Assoc [ ("error", `String message) ])
 
-let database operation = Caqti_lwt_unix.Pool.use operation pool
+let database operation = Runtime.Pool.use operation pool
 
 let todo_json ~id ~title ~completed ~order =
   `Assoc

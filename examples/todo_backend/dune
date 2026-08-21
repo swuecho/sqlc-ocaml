@@ -1,4 +1,3 @@
 (executable
  (name main)
- (libraries dream caqti-lwt.unix caqti-driver-postgresql lwt.unix yojson uri))
-
+ (libraries dream sqlc-ocaml-runtime-lwt caqti-lwt.unix caqti-driver-postgresql lwt.unix yojson))

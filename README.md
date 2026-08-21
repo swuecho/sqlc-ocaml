@@ -90,6 +90,12 @@ Lwt output needs `caqti-lwt` and `lwt`; Async output needs `caqti-async` and
 `async_kernel`. Depending on the SQL types used, generated applications also
 need `ptime`, `uuidm`, and `yojson`.
 
+Applications can optionally use `sqlc-ocaml-runtime-lwt` or
+`sqlc-ocaml-runtime-async` for a consistent `Pool.connect`/`Pool.use` API. The
+pool remains application-owned and generated query functions continue to
+accept an explicit database connection, preserving transaction support. See
+[`runtime`](runtime) for package setup and examples.
+
 The MVP uses sqlc's supported JSON process-plugin wire format. This keeps the
 binary dependency-free and makes the protocol easy to inspect during early
 development.

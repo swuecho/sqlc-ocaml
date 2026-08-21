@@ -1,3 +1,5 @@
+module Runtime = Sqlc_ocaml_runtime_lwt
+
 let database_url =
   Sys.getenv_opt "DATABASE_URL"
   |> Option.value ~default:"postgresql://todo:todo@localhost:5438/todo"
@@ -6,24 +8,25 @@ let fail error =
   prerr_endline (Caqti_error.show error);
   exit 1
 
+let database_pool =
+  lazy (Runtime.Pool.connect_uri_exn database_url)
+
+let run_database operation =
+  let pool = Lazy.force database_pool in
+  Runtime.Pool.run operation pool
+
 let with_database operation =
-  match Caqti_lwt_unix.connect_pool (Uri.of_string database_url) with
+  match run_database operation with
+  | Ok value -> value
   | Error error -> fail error
-  | Ok pool ->
-      match Lwt_main.run (Caqti_lwt_unix.Pool.use operation pool) with
-      | Ok value -> value
-      | Error error -> fail error
 
 let with_database_execrows operation =
-  match Caqti_lwt_unix.connect_pool (Uri.of_string database_url) with
-  | Error error -> fail error
-  | Ok pool ->
-      match Lwt_main.run (Caqti_lwt_unix.Pool.use operation pool) with
-      | Ok value -> value
-      | Error `Unsupported ->
-          prerr_endline "database driver does not report affected row counts";
-          exit 1
-      | Error (#Caqti_error.t as error) -> fail error
+  match run_database operation with
+  | Ok value -> value
+  | Error `Unsupported ->
+      prerr_endline "database driver does not report affected row counts";
+      exit 1
+  | Error (#Caqti_error.t as error) -> fail error
 
 let print_todo (todo : Queries.ListTodos.row) =
   Printf.printf "%Ld [%s] %s tags=%s\n" todo.id

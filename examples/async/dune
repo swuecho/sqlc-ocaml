@@ -1,3 +1,3 @@
 (executable
  (name main)
- (libraries async_unix caqti-async caqti-driver-postgresql uri))
+ (libraries sqlc-ocaml-runtime-async async_unix caqti-async caqti-driver-postgresql))
