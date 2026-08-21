@@ -17,13 +17,16 @@ let verify db =
       Queries.List_numbers.fold db () ~init:(0, 0L)
         ~f:(fun (row : Queries.List_numbers.row) (count, sum) ->
           (count + 1, Int64.add sum row.value))
-      >>| function
+      >>= function
       | Error error -> fail error
       | Ok (count, sum) ->
           if count <> 1000 || sum <> 500500L then
             failwith
               (Printf.sprintf "fold returned count=%d sum=%Ld" count sum);
-          Printf.printf "Async execute and fold verified %d rows (sum=%Ld).\n" count sum
+          let stdout = Lazy.force Writer.stdout in
+          Writer.writef stdout
+            "Async execute and fold verified %d rows (sum=%Ld).\n" count sum;
+          Writer.flushed stdout
 
 let main () =
   Caqti_async.connect (Uri.of_string database_url)
