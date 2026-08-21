@@ -49,6 +49,12 @@ async-generate: plugin-linux
 async-e2e: example-base async-generate
 	cd examples/async && ./e2e.sh
 
+gen: plugin-linux
+	docker run --rm -v "$(CURDIR):/src" -w /src/examples/todo sqlc/sqlc:$(SQLC_VERSION) generate
+	docker run --rm -v "$(CURDIR):/src" -w /src/examples/todo_backend sqlc/sqlc:$(SQLC_VERSION) generate
+	docker run --rm -v "$(CURDIR):/src" -w /src/examples/overrides sqlc/sqlc:$(SQLC_VERSION) generate
+	docker run --rm -v "$(CURDIR):/src" -w /src/examples/async sqlc/sqlc:$(SQLC_VERSION) generate
+
 examples-e2e: example-base plugin-linux
 	docker run --rm -v "$(CURDIR):/src" -w /src/examples/todo sqlc/sqlc:$(SQLC_VERSION) generate
 	cd examples/todo && ./e2e.sh

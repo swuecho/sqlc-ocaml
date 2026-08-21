@@ -10,9 +10,11 @@ module List_numbers = struct
     value : int64;
   }
 
+  let sql = "SELECT value\nFROM numbers\nORDER BY value"
+
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.unit) ->* (Caqti_type.int64)) "SELECT value\nFROM numbers\nORDER BY value"
+    ((Caqti_type.unit) ->* (Caqti_type.int64)) sql
 
   let execute (module Db : Caqti_async.CONNECTION) (_params : params) =
     Db.collect_list request ()

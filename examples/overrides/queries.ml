@@ -17,9 +17,11 @@ module Create_user = struct
     email : Email.t option;
   }
 
+  let sql = "INSERT INTO users (display_name, email)\nVALUES (?, ?)\nRETURNING id, display_name, email"
+
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.t2 (Caqti_type.string) (Caqti_type.option (Email.codec))) ->! (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.option (Email.codec)))) "INSERT INTO users (display_name, email)\nVALUES (?, ?)\nRETURNING id, display_name, email"
+    ((Caqti_type.t2 (Caqti_type.string) (Caqti_type.option (Email.codec))) ->! (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.option (Email.codec)))) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.find request (params.display_name, params.email)
@@ -34,9 +36,11 @@ module List_users = struct
     email : Email.t option;
   }
 
+  let sql = "SELECT id, display_name, email\nFROM users\nORDER BY id"
+
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.unit) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.option (Email.codec)))) "SELECT id, display_name, email\nFROM users\nORDER BY id"
+    ((Caqti_type.unit) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.option (Email.codec)))) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (_params : params) =
     Db.collect_list request ()

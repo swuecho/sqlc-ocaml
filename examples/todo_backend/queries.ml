@@ -20,9 +20,11 @@ module Create_todo = struct
     order : int32;
   }
 
+  let sql = "INSERT INTO todos (title, completed, todo_order)\nVALUES (?, ?, ?)\nRETURNING todos.id, todos.title, todos.completed, todos.todo_order AS \"order\""
+
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.t2 (Caqti_type.t2 (Caqti_type.string) (Caqti_type.bool)) (Caqti_type.int32)) ->! (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32))) "INSERT INTO todos (title, completed, todo_order)\nVALUES (?, ?, ?)\nRETURNING todos.id, todos.title, todos.completed, todos.todo_order AS \"order\""
+    ((Caqti_type.t2 (Caqti_type.t2 (Caqti_type.string) (Caqti_type.bool)) (Caqti_type.int32)) ->! (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32))) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.find request ((params.title, params.completed), params.todo_order)
@@ -38,9 +40,11 @@ module List_todos = struct
     order : int32;
   }
 
+  let sql = "SELECT id, title, completed, todo_order AS \"order\"\nFROM todos\nORDER BY id"
+
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.unit) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32))) "SELECT id, title, completed, todo_order AS \"order\"\nFROM todos\nORDER BY id"
+    ((Caqti_type.unit) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32))) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (_params : params) =
     Db.collect_list request ()
@@ -61,9 +65,11 @@ module Get_todo = struct
     order : int32;
   }
 
+  let sql = "SELECT id, title, completed, todo_order AS \"order\"\nFROM todos\nWHERE id = ?"
+
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.int64) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32))) "SELECT id, title, completed, todo_order AS \"order\"\nFROM todos\nWHERE id = ?"
+    ((Caqti_type.int64) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32))) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.collect_list request params.id
@@ -87,9 +93,11 @@ module Patch_todo = struct
     order : int32;
   }
 
+  let sql = "UPDATE todos\nSET title = COALESCE(?, title),\n    completed = COALESCE(?, completed),\n    todo_order = COALESCE(?, todo_order)\nWHERE id = ?\nRETURNING todos.id, todos.title, todos.completed, todos.todo_order AS \"order\""
+
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.option (Caqti_type.string)) (Caqti_type.option (Caqti_type.bool))) (Caqti_type.option (Caqti_type.int32))) (Caqti_type.int64)) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32))) "UPDATE todos\nSET title = COALESCE(?, title),\n    completed = COALESCE(?, completed),\n    todo_order = COALESCE(?, todo_order)\nWHERE id = ?\nRETURNING todos.id, todos.title, todos.completed, todos.todo_order AS \"order\""
+    ((Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.option (Caqti_type.string)) (Caqti_type.option (Caqti_type.bool))) (Caqti_type.option (Caqti_type.int32))) (Caqti_type.int64)) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32))) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.collect_list request (((params.title, params.completed), params.todo_order), params.id)
@@ -104,9 +112,11 @@ module Delete_todo = struct
     id : int64;
   }
 
+  let sql = "DELETE FROM todos WHERE id = ?"
+
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.int64) ->. (Caqti_type.unit)) "DELETE FROM todos WHERE id = ?"
+    ((Caqti_type.int64) ->. (Caqti_type.unit)) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.exec request params.id
@@ -115,9 +125,11 @@ end
 module Delete_all_todos = struct
   type params = unit
 
+  let sql = "DELETE FROM todos"
+
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.unit) ->. (Caqti_type.unit)) "DELETE FROM todos"
+    ((Caqti_type.unit) ->. (Caqti_type.unit)) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (_params : params) =
     Db.exec request ()

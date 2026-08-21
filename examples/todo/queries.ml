@@ -79,9 +79,11 @@ module Create_todo = struct
     created_at : Ptime.t;
   }
 
+  let sql = "INSERT INTO todos (title, tags)\nVALUES (?, ?)\nRETURNING id, title, tags, completed, created_at"
+
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.t2 (Caqti_type.string) (Sqlc_array.codec ~encode_element:(fun x -> x) ~decode_element:(fun x -> Ok x))) ->! (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Sqlc_array.codec ~encode_element:(fun x -> x) ~decode_element:(fun x -> Ok x))) (Caqti_type.bool)) (Caqti_type.ptime))) "INSERT INTO todos (title, tags)\nVALUES (?, ?)\nRETURNING id, title, tags, completed, created_at"
+    ((Caqti_type.t2 (Caqti_type.string) (Sqlc_array.codec ~encode_element:(fun x -> x) ~decode_element:(fun x -> Ok x))) ->! (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Sqlc_array.codec ~encode_element:(fun x -> x) ~decode_element:(fun x -> Ok x))) (Caqti_type.bool)) (Caqti_type.ptime))) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.find request (params.title, params.tags)
@@ -98,9 +100,11 @@ module List_todos = struct
     created_at : Ptime.t;
   }
 
+  let sql = "SELECT id, title, tags, completed, created_at\nFROM todos\nORDER BY id"
+
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.unit) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Sqlc_array.codec ~encode_element:(fun x -> x) ~decode_element:(fun x -> Ok x))) (Caqti_type.bool)) (Caqti_type.ptime))) "SELECT id, title, tags, completed, created_at\nFROM todos\nORDER BY id"
+    ((Caqti_type.unit) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Sqlc_array.codec ~encode_element:(fun x -> x) ~decode_element:(fun x -> Ok x))) (Caqti_type.bool)) (Caqti_type.ptime))) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (_params : params) =
     Db.collect_list request ()
@@ -122,9 +126,11 @@ module List_todos_by_ids = struct
     created_at : Ptime.t;
   }
 
+  let sql = "SELECT id, title, tags, completed, created_at\nFROM todos\nWHERE id = ANY(?::bigint[])\nORDER BY id"
+
   let request =
     let open Caqti_request.Infix in
-    ((Sqlc_array.codec ~encode_element:Int64.to_string ~decode_element:(fun s -> try Ok (Int64.of_string s) with Failure _ -> Error ("invalid bigint: " ^ s))) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Sqlc_array.codec ~encode_element:(fun x -> x) ~decode_element:(fun x -> Ok x))) (Caqti_type.bool)) (Caqti_type.ptime))) "SELECT id, title, tags, completed, created_at\nFROM todos\nWHERE id = ANY(?::bigint[])\nORDER BY id"
+    ((Sqlc_array.codec ~encode_element:Int64.to_string ~decode_element:(fun s -> try Ok (Int64.of_string s) with Failure _ -> Error ("invalid bigint: " ^ s))) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Sqlc_array.codec ~encode_element:(fun x -> x) ~decode_element:(fun x -> Ok x))) (Caqti_type.bool)) (Caqti_type.ptime))) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.collect_list request params.ids
@@ -146,9 +152,11 @@ module Complete_todo = struct
     created_at : Ptime.t;
   }
 
+  let sql = "UPDATE todos\nSET completed = true\nWHERE id = ?\nRETURNING id, title, tags, completed, created_at"
+
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.int64) ->! (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Sqlc_array.codec ~encode_element:(fun x -> x) ~decode_element:(fun x -> Ok x))) (Caqti_type.bool)) (Caqti_type.ptime))) "UPDATE todos\nSET completed = true\nWHERE id = ?\nRETURNING id, title, tags, completed, created_at"
+    ((Caqti_type.int64) ->! (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Sqlc_array.codec ~encode_element:(fun x -> x) ~decode_element:(fun x -> Ok x))) (Caqti_type.bool)) (Caqti_type.ptime))) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.find request params.id
@@ -160,9 +168,11 @@ module Delete_todo = struct
     id : int64;
   }
 
+  let sql = "DELETE FROM todos\nWHERE id = ?"
+
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.int64) ->. (Caqti_type.unit)) "DELETE FROM todos\nWHERE id = ?"
+    ((Caqti_type.int64) ->. (Caqti_type.unit)) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.exec_with_affected_count request params.id

@@ -65,13 +65,19 @@ func TestGenerateMVP(t *testing.T) {
 	}
 	ml := string(resp.Files[0].Contents)
 	mli := string(resp.Files[1].Contents)
-	for _, want := range []string{"module Find_user = struct", "email : string option;", "status : user_status;", "->!", "->*", "->.", "Db.collect_list", "let fold", "Db.fold request"} {
+	for _, want := range []string{"module Find_user = struct", "email : string option;", "status : user_status;", "->!", "->*", "->.", "Db.collect_list", "let fold", "Db.fold request", "let sql = \"SELECT id, email, status FROM users WHERE id = ?\"", ") sql"} {
 		if !strings.Contains(ml, want) {
 			t.Errorf("ML missing %q", want)
 		}
 	}
 	if strings.Contains(ml, "$1") || !strings.Contains(ml, "WHERE id = ?") {
 		t.Error("PostgreSQL placeholder was not converted to Caqti syntax")
+	}
+	if got, want := strings.Count(ml, "  let sql = "), len(request().Queries); got != want {
+		t.Errorf("generated %d SQL bindings, want one for each of %d query modules", got, want)
+	}
+	if got, want := strings.Count(ml, ") sql"), len(request().Queries); got != want {
+		t.Errorf("generated %d requests using extracted SQL, want %d", got, want)
 	}
 	for _, want := range []string{"module Find_user : sig", "(row, [> Caqti_error.call_or_retrieve ]) result Lwt.t", "(unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t"} {
 		if !strings.Contains(mli, want) {

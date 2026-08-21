@@ -354,7 +354,8 @@ func (g *gen) renderQuery(ml, mli *bytes.Buffer, q Query) {
 	}
 
 	requestOp, method, result := cardinalityRendering(q.Cardinality)
-	fmt.Fprintf(ml, "\n  let request =\n    let open Caqti_request.Infix in\n    ((%s) %s (%s)) %q\n\n", bindingCodec(q), requestOp, optionalRecordCodec(q.Row), q.SQL)
+	fmt.Fprintf(ml, "\n  let sql = %q\n\n", q.SQL)
+	fmt.Fprintf(ml, "  let request =\n    let open Caqti_request.Infix in\n    ((%s) %s (%s)) sql\n\n", bindingCodec(q), requestOp, optionalRecordCodec(q.Row))
 	paramVars := make([]string, len(q.Bindings))
 	for i, binding := range q.Bindings {
 		paramVars[i] = "params." + q.Params.Fields[binding.FieldIndex].Name
