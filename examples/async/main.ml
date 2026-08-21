@@ -34,4 +34,9 @@ let main () =
   | Error error -> fail error
   | Ok db -> verify db
 
-let () = Stdlib.ignore (Scheduler.go_main ~main ())
+let scheduler_main () =
+  don't_wait_for
+    (main ()
+    >>| fun () -> Shutdown.shutdown 0)
+
+let () = Stdlib.ignore (Scheduler.go_main ~main:scheduler_main ())
