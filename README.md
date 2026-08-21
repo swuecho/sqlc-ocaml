@@ -133,7 +133,20 @@ Run it with `make overrides-e2e`; its database is exposed on port 5440.
 constant-memory `fold`. Run it with `make async-e2e`; its database is exposed
 on port 5441.
 
-Run every database-backed example with `make examples-e2e`. The example
+## Development checks
+
+Use the narrowest check that covers your change:
+
+```sh
+make quickcheck       # Go tests and vet; no Docker or database required
+make generated-check # regenerate examples and check for stale output; needs Docker
+make e2e              # complete OCaml/PostgreSQL integration suite; needs Docker
+```
+
+`make check` remains an alias for `make quickcheck`. Run `make e2e` before
+submitting changes that affect generated OCaml or database behavior.
+
+Run every database-backed example with `make e2e`. The example
 applications share the `sqlc-ocaml-example-base:local` Docker image, so the
 OCaml compiler and common dependencies are installed only once. Set
 `EXAMPLE_BASE_IMAGE` to use a differently tagged prebuilt image.

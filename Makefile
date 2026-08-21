@@ -1,4 +1,4 @@
-.PHONY: build plugin-linux example-base examples-e2e test check todo-generate todo-e2e todo-backend-generate todo-backend-e2e overrides-generate overrides-e2e async-generate async-e2e
+.PHONY: build plugin-linux example-base quickcheck generated-check e2e examples-e2e test check todo-generate todo-e2e todo-backend-generate todo-backend-e2e overrides-generate overrides-e2e async-generate async-e2e gen
 
 SQLC_VERSION ?= 1.30.0
 PLUGIN_GOARCH ?= $(shell go env GOARCH)
@@ -11,8 +11,19 @@ build:
 test:
 	go test ./...
 
-check: test
+quickcheck: test
 	go vet ./...
+
+# Kept as a backwards-compatible alias for the fast, dependency-light checks.
+check: quickcheck
+
+# Regenerate committed examples and fail if their checked-in output is stale.
+# This needs Docker, but does not start PostgreSQL or build the OCaml examples.
+generated-check: gen
+	git diff --exit-code -- examples
+
+# Run the complete Docker- and database-backed integration suite.
+e2e: examples-e2e
 
 plugin-linux:
 	mkdir -p bin

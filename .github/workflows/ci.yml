@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   go:
-    name: Go checks
+    name: Fast checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -22,10 +22,21 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: make check
+      - run: make quickcheck
+
+  generated:
+    name: Generated code is current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make generated-check
 
   examples:
-    name: End-to-end examples
+    name: Database end-to-end examples
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -54,10 +65,7 @@ jobs:
           docker image inspect sqlc-ocaml-example-base:local
 
       - name: Run database-backed examples
-        run: EXAMPLE_BASE_PREBUILT=true make examples-e2e
-
-      - name: Check generated code is current
-        run: git diff --exit-code -- examples
+        run: EXAMPLE_BASE_PREBUILT=true make e2e
 
       - name: Show container logs on failure
         if: failure()
