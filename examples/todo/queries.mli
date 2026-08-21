@@ -8,7 +8,8 @@ type todos = {
   created_at : Ptime.t;
 }
 
-module Create_todo : sig
+(** Query [CreateTodo] (returns exactly one row). *)
+module CreateTodo : sig
   type params = {
     title : string;
     tags : string list;
@@ -21,13 +22,15 @@ module Create_todo : sig
     created_at : Ptime.t;
   }
 
+  (** Execute [CreateTodo]. *)
   val execute :
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 end
 
-module List_todos : sig
+(** Query [ListTodos] (returns zero or more rows). *)
+module ListTodos : sig
   type params = unit
   type row = {
     id : int64;
@@ -37,11 +40,13 @@ module List_todos : sig
     created_at : Ptime.t;
   }
 
+  (** Execute [ListTodos]. *)
   val execute :
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 
+  (** Fold rows without materializing the complete result list. *)
   val fold :
     (module Caqti_lwt.CONNECTION) ->
     params ->
@@ -50,7 +55,8 @@ module List_todos : sig
     ('a, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 end
 
-module List_todos_by_ids : sig
+(** Query [ListTodosByIds] (returns zero or more rows). *)
+module ListTodosByIds : sig
   type params = {
     ids : int64 list;
   }
@@ -62,11 +68,13 @@ module List_todos_by_ids : sig
     created_at : Ptime.t;
   }
 
+  (** Execute [ListTodosByIds]. *)
   val execute :
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 
+  (** Fold rows without materializing the complete result list. *)
   val fold :
     (module Caqti_lwt.CONNECTION) ->
     params ->
@@ -75,7 +83,8 @@ module List_todos_by_ids : sig
     ('a, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 end
 
-module Complete_todo : sig
+(** Query [CompleteTodo] (returns exactly one row). *)
+module CompleteTodo : sig
   type params = {
     id : int64;
   }
@@ -87,17 +96,20 @@ module Complete_todo : sig
     created_at : Ptime.t;
   }
 
+  (** Execute [CompleteTodo]. *)
   val execute :
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 end
 
-module Delete_todo : sig
+(** Query [DeleteTodo] (returns the affected-row count). *)
+module DeleteTodo : sig
   type params = {
     id : int64;
   }
 
+  (** Execute [DeleteTodo]. *)
   val execute :
     (module Caqti_lwt.CONNECTION) ->
     params ->

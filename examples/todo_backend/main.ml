@@ -38,16 +38,16 @@ let todo_json ~id ~title ~completed ~order =
       ("order", `Int (Int32.to_int order));
       ("url", `String (Printf.sprintf "%s/%Ld" public_todos_url id)) ]
 
-let list_row_json (row : Queries.List_todos.row) =
+let list_row_json (row : Queries.ListTodos.row) =
   todo_json ~id:row.id ~title:row.title ~completed:row.completed ~order:row.order
 
-let get_row_json (row : Queries.Get_todo.row) =
+let get_row_json (row : Queries.GetTodo.row) =
   todo_json ~id:row.id ~title:row.title ~completed:row.completed ~order:row.order
 
-let create_row_json (row : Queries.Create_todo.row) =
+let create_row_json (row : Queries.CreateTodo.row) =
   todo_json ~id:row.id ~title:row.title ~completed:row.completed ~order:row.order
 
-let patch_row_json (row : Queries.Patch_todo.row) =
+let patch_row_json (row : Queries.PatchTodo.row) =
   todo_json ~id:row.id ~title:row.title ~completed:row.completed ~order:row.order
 
 let int64_param request =
@@ -106,7 +106,7 @@ let optional_order_field fields =
   | None -> Ok None
 
 let get_all _request =
-  let* result = database (fun db -> Queries.List_todos.execute db ()) in
+  let* result = database (fun db -> Queries.ListTodos.execute db ()) in
   match result with
   | Ok todos -> json (`List (List.map list_row_json todos))
   | Error db_error -> error ~status:`Internal_Server_Error (Caqti_error.show db_error)
@@ -115,7 +115,7 @@ let get_one request =
   match int64_param request with
   | Error message -> error message
   | Ok id ->
-      let* result = database (fun db -> Queries.Get_todo.execute db { id }) in
+      let* result = database (fun db -> Queries.GetTodo.execute db { id }) in
       (match result with
       | Ok (todo :: _) -> json (get_row_json todo)
       | Ok [] -> error ~status:`Not_Found "todo not found"
@@ -128,8 +128,8 @@ let create request =
   | Ok fields ->
       (match (title_field fields, bool_field ~default:false "completed" fields, order_field ~default:0l fields) with
       | Ok title, Ok completed, Ok order ->
-          let params : Queries.Create_todo.params = { title; completed; todo_order = order } in
-          let* result = database (fun db -> Queries.Create_todo.execute db params) in
+          let params : Queries.CreateTodo.params = { title; completed; todo_order = order } in
+          let* result = database (fun db -> Queries.CreateTodo.execute db params) in
           (match result with
           | Ok todo -> json ~status:`Created (create_row_json todo)
           | Error db_error -> error ~status:`Internal_Server_Error (Caqti_error.show db_error))
@@ -145,8 +145,8 @@ let patch request =
       | Ok fields ->
           (match (optional_title_field fields, optional_bool_field "completed" fields, optional_order_field fields) with
           | Ok title, Ok completed, Ok todo_order ->
-              let params : Queries.Patch_todo.params = { id; title; completed; todo_order } in
-              let* result = database (fun db -> Queries.Patch_todo.execute db params) in
+              let params : Queries.PatchTodo.params = { id; title; completed; todo_order } in
+              let* result = database (fun db -> Queries.PatchTodo.execute db params) in
               (match result with
               | Ok (updated :: _) -> json (patch_row_json updated)
               | Ok [] -> error ~status:`Not_Found "todo not found"
@@ -157,13 +157,13 @@ let delete_one request =
   match int64_param request with
   | Error message -> error message
   | Ok id ->
-      let* result = database (fun db -> Queries.Delete_todo.execute db { id }) in
+      let* result = database (fun db -> Queries.DeleteTodo.execute db { id }) in
       (match result with
       | Ok () -> Dream.empty `No_Content
       | Error db_error -> error ~status:`Internal_Server_Error (Caqti_error.show db_error))
 
 let delete_all _request =
-  let* result = database (fun db -> Queries.Delete_all_todos.execute db ()) in
+  let* result = database (fun db -> Queries.DeleteAllTodos.execute db ()) in
   match result with
   | Ok () -> Dream.empty `No_Content
   | Error db_error -> error ~status:`Internal_Server_Error (Caqti_error.show db_error)

@@ -61,3 +61,13 @@ func constructor(s string) string {
 	}
 	return strings.ToUpper(r[:1]) + r[1:]
 }
+
+func moduleName(s string) string {
+	parts := strings.Split(snake(s), "_")
+	for i, part := range parts {
+		if part != "" {
+			parts[i] = strings.ToUpper(part[:1]) + part[1:]
+		}
+	}
+	return strings.Join(parts, "")
+}

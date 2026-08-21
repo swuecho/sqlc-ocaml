@@ -65,7 +65,7 @@ func TestGenerateMVP(t *testing.T) {
 	}
 	ml := string(resp.Files[0].Contents)
 	mli := string(resp.Files[1].Contents)
-	for _, want := range []string{"module Find_user = struct", "email : string option;", "status : user_status;", "->!", "->*", "->.", "Db.collect_list", "let fold", "Db.fold request", "let sql = \"SELECT id, email, status FROM users WHERE id = ?\"", ") sql"} {
+	for _, want := range []string{"module FindUser = struct", "email : string option;", "status : user_status;", "->!", "->*", "->.", "Db.collect_list", "let fold", "Db.fold request", "{sql|SELECT id, email, status FROM users WHERE id = ?|sql}", "let params_type =", "let row_type =", "let encode_params", "let decode_row", ") sql"} {
 		if !strings.Contains(ml, want) {
 			t.Errorf("ML missing %q", want)
 		}
@@ -73,13 +73,13 @@ func TestGenerateMVP(t *testing.T) {
 	if strings.Contains(ml, "$1") || !strings.Contains(ml, "WHERE id = ?") {
 		t.Error("PostgreSQL placeholder was not converted to Caqti syntax")
 	}
-	if got, want := strings.Count(ml, "  let sql = "), len(request().Queries); got != want {
+	if got, want := strings.Count(ml, "  let sql =\n"), len(request().Queries); got != want {
 		t.Errorf("generated %d SQL bindings, want one for each of %d query modules", got, want)
 	}
 	if got, want := strings.Count(ml, ") sql"), len(request().Queries); got != want {
 		t.Errorf("generated %d requests using extracted SQL, want %d", got, want)
 	}
-	for _, want := range []string{"module Find_user : sig", "(row, [> Caqti_error.call_or_retrieve ]) result Lwt.t", "(unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t"} {
+	for _, want := range []string{"(** Query [FindUser] (returns exactly one row). *)", "module FindUser : sig", "(row, [> Caqti_error.call_or_retrieve ]) result Lwt.t", "(unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t"} {
 		if !strings.Contains(mli, want) {
 			t.Errorf("MLI missing %q", want)
 		}
@@ -211,7 +211,7 @@ func TestGenerateExecRows(t *testing.T) {
 	}
 	ml := string(resp.Files[0].Contents)
 	mli := string(resp.Files[1].Contents)
-	if !strings.Contains(ml, "Db.exec_with_affected_count request params.disabled") {
+	if !strings.Contains(ml, "Db.exec_with_affected_count request (encode_params params)") {
 		t.Fatalf("generated ML does not use affected-count execution:\n%s", ml)
 	}
 	for _, want := range []string{"(int,", "`Unsupported"} {
@@ -328,8 +328,11 @@ func TestGenerateIntegerArrayParameter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(resp.Files) != 4 || resp.Files[2].Name != "sqlc_runtime.ml" || resp.Files[3].Name != "sqlc_runtime.mli" {
+		t.Fatalf("unexpected array runtime files: %#v", resp.Files)
+	}
 	ml := string(resp.Files[0].Contents)
-	for _, want := range []string{"ids : int64 list;", "module Sqlc_array = struct", "~encode_element:Int64.to_string", "ANY(?::bigint[])", "params.ids"} {
+	for _, want := range []string{"ids : int64 list;", "Sqlc_runtime.Array.codec", "~encode_element:Int64.to_string", "ANY(?::bigint[])", "params.ids"} {
 		if !strings.Contains(ml, want) {
 			t.Errorf("generated ML missing integer-array output %q\n%s", want, ml)
 		}
@@ -388,7 +391,7 @@ func TestNormalizedIR(t *testing.T) {
 		t.Fatalf("got %d queries", len(program.Queries))
 	}
 	find := program.Queries[0]
-	if find.SourceName != "FindUser" || find.SourceFile != "users.sql" || find.ModuleName != "Find_user" || find.Cardinality != One {
+	if find.SourceName != "FindUser" || find.SourceFile != "users.sql" || find.ModuleName != "FindUser" || find.Cardinality != One {
 		t.Fatalf("unexpected query identity: %#v", find)
 	}
 	if find.SQL != "SELECT id, email, status FROM users WHERE id = ?" {

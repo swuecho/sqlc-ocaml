@@ -4,17 +4,20 @@ type numbers = {
   value : int64;
 }
 
-module List_numbers : sig
+(** Query [ListNumbers] (returns zero or more rows). *)
+module ListNumbers : sig
   type params = unit
   type row = {
     value : int64;
   }
 
+  (** Execute [ListNumbers]. *)
   val execute :
     (module Caqti_async.CONNECTION) ->
     params ->
     (row list, [> Caqti_error.call_or_retrieve ]) result Async_kernel.Deferred.t
 
+  (** Fold rows without materializing the complete result list. *)
   val fold :
     (module Caqti_async.CONNECTION) ->
     params ->

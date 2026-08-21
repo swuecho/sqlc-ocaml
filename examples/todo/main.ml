@@ -25,7 +25,7 @@ let with_database_execrows operation =
           exit 1
       | Error (#Caqti_error.t as error) -> fail error
 
-let print_todo (todo : Queries.List_todos.row) =
+let print_todo (todo : Queries.ListTodos.row) =
   Printf.printf "%Ld [%s] %s tags=%s\n" todo.id
     (if todo.completed then "x" else " ") todo.title
     (String.concat "|" todo.tags)
@@ -40,37 +40,37 @@ let parse_id value =
 let add title =
   let todo =
     with_database (fun db ->
-        Queries.Create_todo.execute db
+        Queries.CreateTodo.execute db
           { title; tags = [ "cli"; "comma,value"; "quote\"slash\\" ] })
   in
   Printf.printf "Created todo %Ld: %s\n" todo.id todo.title
 
 let list () =
   let todos =
-    with_database (fun db -> Queries.List_todos.execute db ())
+    with_database (fun db -> Queries.ListTodos.execute db ())
   in
   List.iter print_todo todos
 
 let list_ids values =
   let ids = List.map parse_id values in
   let todos =
-    with_database (fun db -> Queries.List_todos_by_ids.execute db { ids })
+    with_database (fun db -> Queries.ListTodosByIds.execute db { ids })
   in
   List.iter
-    (fun (todo : Queries.List_todos_by_ids.row) ->
+    (fun (todo : Queries.ListTodosByIds.row) ->
       Printf.printf "%Ld [%s] %s\n" todo.id
         (if todo.completed then "x" else " ") todo.title)
     todos
 
 let done_ id =
   let todo =
-    with_database (fun db -> Queries.Complete_todo.execute db { id })
+    with_database (fun db -> Queries.CompleteTodo.execute db { id })
   in
   Printf.printf "Completed todo %Ld: %s\n" todo.id todo.title
 
 let delete id =
   let affected =
-    with_database_execrows (fun db -> Queries.Delete_todo.execute db { id })
+    with_database_execrows (fun db -> Queries.DeleteTodo.execute db { id })
   in
   Printf.printf "Deleted %d todo(s)\n" affected
 

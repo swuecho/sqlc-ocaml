@@ -7,7 +7,7 @@ type todos = {
   todo_order : int32;
 }
 
-module Create_todo = struct
+module CreateTodo = struct
   type params = {
     title : string;
     completed : bool;
@@ -20,18 +20,33 @@ module Create_todo = struct
     order : int32;
   }
 
-  let sql = "INSERT INTO todos (title, completed, todo_order)\nVALUES (?, ?, ?)\nRETURNING todos.id, todos.title, todos.completed, todos.todo_order AS \"order\""
+  let sql =
+    {sql|INSERT INTO todos (title, completed, todo_order)
+VALUES (?, ?, ?)
+RETURNING todos.id, todos.title, todos.completed, todos.todo_order AS "order"|sql}
+
+  let params_type =
+    Caqti_type.t2 (Caqti_type.t2 (Caqti_type.string) (Caqti_type.bool)) (Caqti_type.int32)
+
+  let row_type =
+    Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32)
+
+  let encode_params (params : params) =
+    ((params.title, params.completed), params.todo_order)
+
+  let decode_row (((v_id, v_title), v_completed), v_order) =
+    { id = v_id; title = v_title; completed = v_completed; order = v_order }
 
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.t2 (Caqti_type.t2 (Caqti_type.string) (Caqti_type.bool)) (Caqti_type.int32)) ->! (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32))) sql
+    (params_type ->! row_type) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
-    Db.find request ((params.title, params.completed), params.todo_order)
-    |> Lwt.map (Result.map (fun (((v_id, v_title), v_completed), v_order) -> { id = v_id; title = v_title; completed = v_completed; order = v_order }))
+    Db.find request (encode_params params)
+    |> Lwt.map (Result.map decode_row)
 end
 
-module List_todos = struct
+module ListTodos = struct
   type params = unit
   type row = {
     id : int64;
@@ -40,21 +55,36 @@ module List_todos = struct
     order : int32;
   }
 
-  let sql = "SELECT id, title, completed, todo_order AS \"order\"\nFROM todos\nORDER BY id"
+  let sql =
+    {sql|SELECT id, title, completed, todo_order AS "order"
+FROM todos
+ORDER BY id|sql}
+
+  let params_type =
+    Caqti_type.unit
+
+  let row_type =
+    Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32)
+
+  let encode_params (_params : params) =
+    ()
+
+  let decode_row (((v_id, v_title), v_completed), v_order) =
+    { id = v_id; title = v_title; completed = v_completed; order = v_order }
 
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.unit) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32))) sql
+    (params_type ->* row_type) sql
 
-  let execute (module Db : Caqti_lwt.CONNECTION) (_params : params) =
-    Db.collect_list request ()
-    |> Lwt.map (Result.map (List.map (fun (((v_id, v_title), v_completed), v_order) -> { id = v_id; title = v_title; completed = v_completed; order = v_order })))
+  let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
+    Db.collect_list request (encode_params params)
+    |> Lwt.map (Result.map (List.map decode_row))
 
-  let fold (module Db : Caqti_lwt.CONNECTION) (_params : params) ~init ~f =
-    Db.fold request (fun raw acc -> f ((fun (((v_id, v_title), v_completed), v_order) -> { id = v_id; title = v_title; completed = v_completed; order = v_order }) raw) acc) () init
+  let fold (module Db : Caqti_lwt.CONNECTION) (params : params) ~init ~f =
+    Db.fold request (fun raw acc -> f (decode_row raw) acc) (encode_params params) init
 end
 
-module Get_todo = struct
+module GetTodo = struct
   type params = {
     id : int64;
   }
@@ -65,21 +95,36 @@ module Get_todo = struct
     order : int32;
   }
 
-  let sql = "SELECT id, title, completed, todo_order AS \"order\"\nFROM todos\nWHERE id = ?"
+  let sql =
+    {sql|SELECT id, title, completed, todo_order AS "order"
+FROM todos
+WHERE id = ?|sql}
+
+  let params_type =
+    Caqti_type.int64
+
+  let row_type =
+    Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32)
+
+  let encode_params (params : params) =
+    params.id
+
+  let decode_row (((v_id, v_title), v_completed), v_order) =
+    { id = v_id; title = v_title; completed = v_completed; order = v_order }
 
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.int64) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32))) sql
+    (params_type ->* row_type) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
-    Db.collect_list request params.id
-    |> Lwt.map (Result.map (List.map (fun (((v_id, v_title), v_completed), v_order) -> { id = v_id; title = v_title; completed = v_completed; order = v_order })))
+    Db.collect_list request (encode_params params)
+    |> Lwt.map (Result.map (List.map decode_row))
 
   let fold (module Db : Caqti_lwt.CONNECTION) (params : params) ~init ~f =
-    Db.fold request (fun raw acc -> f ((fun (((v_id, v_title), v_completed), v_order) -> { id = v_id; title = v_title; completed = v_completed; order = v_order }) raw) acc) params.id init
+    Db.fold request (fun raw acc -> f (decode_row raw) acc) (encode_params params) init
 end
 
-module Patch_todo = struct
+module PatchTodo = struct
   type params = {
     title : string option;
     completed : bool option;
@@ -93,45 +138,77 @@ module Patch_todo = struct
     order : int32;
   }
 
-  let sql = "UPDATE todos\nSET title = COALESCE(?, title),\n    completed = COALESCE(?, completed),\n    todo_order = COALESCE(?, todo_order)\nWHERE id = ?\nRETURNING todos.id, todos.title, todos.completed, todos.todo_order AS \"order\""
+  let sql =
+    {sql|UPDATE todos
+SET title = COALESCE(?, title),
+    completed = COALESCE(?, completed),
+    todo_order = COALESCE(?, todo_order)
+WHERE id = ?
+RETURNING todos.id, todos.title, todos.completed, todos.todo_order AS "order"|sql}
+
+  let params_type =
+    Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.option (Caqti_type.string)) (Caqti_type.option (Caqti_type.bool))) (Caqti_type.option (Caqti_type.int32))) (Caqti_type.int64)
+
+  let row_type =
+    Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32)
+
+  let encode_params (params : params) =
+    (((params.title, params.completed), params.todo_order), params.id)
+
+  let decode_row (((v_id, v_title), v_completed), v_order) =
+    { id = v_id; title = v_title; completed = v_completed; order = v_order }
 
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.option (Caqti_type.string)) (Caqti_type.option (Caqti_type.bool))) (Caqti_type.option (Caqti_type.int32))) (Caqti_type.int64)) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.bool)) (Caqti_type.int32))) sql
+    (params_type ->* row_type) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
-    Db.collect_list request (((params.title, params.completed), params.todo_order), params.id)
-    |> Lwt.map (Result.map (List.map (fun (((v_id, v_title), v_completed), v_order) -> { id = v_id; title = v_title; completed = v_completed; order = v_order })))
+    Db.collect_list request (encode_params params)
+    |> Lwt.map (Result.map (List.map decode_row))
 
   let fold (module Db : Caqti_lwt.CONNECTION) (params : params) ~init ~f =
-    Db.fold request (fun raw acc -> f ((fun (((v_id, v_title), v_completed), v_order) -> { id = v_id; title = v_title; completed = v_completed; order = v_order }) raw) acc) (((params.title, params.completed), params.todo_order), params.id) init
+    Db.fold request (fun raw acc -> f (decode_row raw) acc) (encode_params params) init
 end
 
-module Delete_todo = struct
+module DeleteTodo = struct
   type params = {
     id : int64;
   }
 
-  let sql = "DELETE FROM todos WHERE id = ?"
+  let sql =
+    {sql|DELETE FROM todos WHERE id = ?|sql}
+
+  let params_type =
+    Caqti_type.int64
+
+  let encode_params (params : params) =
+    params.id
 
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.int64) ->. (Caqti_type.unit)) sql
+    (params_type ->. Caqti_type.unit) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
-    Db.exec request params.id
+    Db.exec request (encode_params params)
 end
 
-module Delete_all_todos = struct
+module DeleteAllTodos = struct
   type params = unit
 
-  let sql = "DELETE FROM todos"
+  let sql =
+    {sql|DELETE FROM todos|sql}
+
+  let params_type =
+    Caqti_type.unit
+
+  let encode_params (_params : params) =
+    ()
 
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.unit) ->. (Caqti_type.unit)) sql
+    (params_type ->. Caqti_type.unit) sql
 
-  let execute (module Db : Caqti_lwt.CONNECTION) (_params : params) =
-    Db.exec request ()
+  let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
+    Db.exec request (encode_params params)
 end
 

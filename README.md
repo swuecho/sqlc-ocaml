@@ -80,7 +80,7 @@ receive the generated OCaml `option` wrapper, so override `type` and `codec`
 describe the non-null element.
 
 ```ocaml
-Queries.Find_user.execute db { id = 42L }
+Queries.FindUser.execute db { id = 42L }
 ```
 
 Lwt output needs `caqti-lwt` and `lwt`; Async output needs `caqti-async` and

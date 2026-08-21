@@ -181,6 +181,6 @@ func (g *gen) mapArray(col *plugin.Column) (mappedType, error) {
 			return mappedType{}, fmt.Errorf("PostgreSQL array type %q is not supported for column %q", name, column)
 		}
 	}
-	codec := fmt.Sprintf("Sqlc_array.codec ~encode_element:%s ~decode_element:%s", encode, decode)
+	codec := fmt.Sprintf("Sqlc_runtime.Array.codec ~encode_element:%s ~decode_element:%s", encode, decode)
 	return mappedType{ocaml + " list", codec}, nil
 }

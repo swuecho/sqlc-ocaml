@@ -6,7 +6,8 @@ type users = {
   email : Email.t option;
 }
 
-module Create_user : sig
+(** Query [CreateUser] (returns exactly one row). *)
+module CreateUser : sig
   type params = {
     display_name : string;
     email : Email.t option;
@@ -17,13 +18,15 @@ module Create_user : sig
     email : Email.t option;
   }
 
+  (** Execute [CreateUser]. *)
   val execute :
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 end
 
-module List_users : sig
+(** Query [ListUsers] (returns zero or more rows). *)
+module ListUsers : sig
   type params = unit
   type row = {
     id : int64;
@@ -31,11 +34,13 @@ module List_users : sig
     email : Email.t option;
   }
 
+  (** Execute [ListUsers]. *)
   val execute :
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 
+  (** Fold rows without materializing the complete result list. *)
   val fold :
     (module Caqti_lwt.CONNECTION) ->
     params ->

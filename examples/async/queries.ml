@@ -4,23 +4,38 @@ type numbers = {
   value : int64;
 }
 
-module List_numbers = struct
+module ListNumbers = struct
   type params = unit
   type row = {
     value : int64;
   }
 
-  let sql = "SELECT value\nFROM numbers\nORDER BY value"
+  let sql =
+    {sql|SELECT value
+FROM numbers
+ORDER BY value|sql}
+
+  let params_type =
+    Caqti_type.unit
+
+  let row_type =
+    Caqti_type.int64
+
+  let encode_params (_params : params) =
+    ()
+
+  let decode_row v_value =
+    { value = v_value }
 
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.unit) ->* (Caqti_type.int64)) sql
+    (params_type ->* row_type) sql
 
-  let execute (module Db : Caqti_async.CONNECTION) (_params : params) =
-    Db.collect_list request ()
-    |> Async_kernel.Deferred.map ~f:(Result.map (List.map (fun v_value -> { value = v_value })))
+  let execute (module Db : Caqti_async.CONNECTION) (params : params) =
+    Db.collect_list request (encode_params params)
+    |> Async_kernel.Deferred.map ~f:(Result.map (List.map decode_row))
 
-  let fold (module Db : Caqti_async.CONNECTION) (_params : params) ~init ~f =
-    Db.fold request (fun raw acc -> f ((fun v_value -> { value = v_value }) raw) acc) () init
+  let fold (module Db : Caqti_async.CONNECTION) (params : params) ~init ~f =
+    Db.fold request (fun raw acc -> f (decode_row raw) acc) (encode_params params) init
 end
 

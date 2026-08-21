@@ -6,7 +6,7 @@ type users = {
   email : Email.t option;
 }
 
-module Create_user = struct
+module CreateUser = struct
   type params = {
     display_name : string;
     email : Email.t option;
@@ -17,18 +17,33 @@ module Create_user = struct
     email : Email.t option;
   }
 
-  let sql = "INSERT INTO users (display_name, email)\nVALUES (?, ?)\nRETURNING id, display_name, email"
+  let sql =
+    {sql|INSERT INTO users (display_name, email)
+VALUES (?, ?)
+RETURNING id, display_name, email|sql}
+
+  let params_type =
+    Caqti_type.t2 (Caqti_type.string) (Caqti_type.option (Email.codec))
+
+  let row_type =
+    Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.option (Email.codec))
+
+  let encode_params (params : params) =
+    (params.display_name, params.email)
+
+  let decode_row ((v_id, v_display_name), v_email) =
+    { id = v_id; display_name = v_display_name; email = v_email }
 
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.t2 (Caqti_type.string) (Caqti_type.option (Email.codec))) ->! (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.option (Email.codec)))) sql
+    (params_type ->! row_type) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
-    Db.find request (params.display_name, params.email)
-    |> Lwt.map (Result.map (fun ((v_id, v_display_name), v_email) -> { id = v_id; display_name = v_display_name; email = v_email }))
+    Db.find request (encode_params params)
+    |> Lwt.map (Result.map decode_row)
 end
 
-module List_users = struct
+module ListUsers = struct
   type params = unit
   type row = {
     id : int64;
@@ -36,17 +51,32 @@ module List_users = struct
     email : Email.t option;
   }
 
-  let sql = "SELECT id, display_name, email\nFROM users\nORDER BY id"
+  let sql =
+    {sql|SELECT id, display_name, email
+FROM users
+ORDER BY id|sql}
+
+  let params_type =
+    Caqti_type.unit
+
+  let row_type =
+    Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.option (Email.codec))
+
+  let encode_params (_params : params) =
+    ()
+
+  let decode_row ((v_id, v_display_name), v_email) =
+    { id = v_id; display_name = v_display_name; email = v_email }
 
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.unit) ->* (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.option (Email.codec)))) sql
+    (params_type ->* row_type) sql
 
-  let execute (module Db : Caqti_lwt.CONNECTION) (_params : params) =
-    Db.collect_list request ()
-    |> Lwt.map (Result.map (List.map (fun ((v_id, v_display_name), v_email) -> { id = v_id; display_name = v_display_name; email = v_email })))
+  let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
+    Db.collect_list request (encode_params params)
+    |> Lwt.map (Result.map (List.map decode_row))
 
-  let fold (module Db : Caqti_lwt.CONNECTION) (_params : params) ~init ~f =
-    Db.fold request (fun raw acc -> f ((fun ((v_id, v_display_name), v_email) -> { id = v_id; display_name = v_display_name; email = v_email }) raw) acc) () init
+  let fold (module Db : Caqti_lwt.CONNECTION) (params : params) ~init ~f =
+    Db.fold request (fun raw acc -> f (decode_row raw) acc) (encode_params params) init
 end
 

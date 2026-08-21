@@ -10,7 +10,8 @@ type scores = {
   score : int32;
 }
 
-module Get_student_score : sig
+(** Query [GetStudentScore] (returns exactly one row). *)
+module GetStudentScore : sig
   type params = {
     id : int64;
   }
@@ -19,6 +20,7 @@ module Get_student_score : sig
     scores : scores;
   }
 
+  (** Execute [GetStudentScore]. *)
   val execute :
     (module Caqti_lwt.CONNECTION) ->
     params ->

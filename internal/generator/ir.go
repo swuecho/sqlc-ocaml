@@ -192,7 +192,7 @@ func (g *gen) normalizeQuery(source *plugin.Query) (Query, error) {
 		}
 		bindings[i] = ParameterBinding{FieldIndex: fieldIndex}
 	}
-	query := Query{SourceName: source.Name, SourceFile: source.Filename, ModuleName: constructor(source.Name), SQL: sql, Cardinality: cardinality, Params: params, Bindings: bindings}
+	query := Query{SourceName: source.Name, SourceFile: source.Filename, ModuleName: moduleName(source.Name), SQL: sql, Cardinality: cardinality, Params: params, Bindings: bindings}
 	if cardinality != Exec && cardinality != ExecRows {
 		row, err := g.normalizeRow(source.Columns)
 		if err != nil {

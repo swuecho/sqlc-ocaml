@@ -8,14 +8,14 @@ let database_url =
 let fail error = failwith (Caqti_error.show error)
 
 let verify db =
-  Queries.List_numbers.execute db ()
+  Queries.ListNumbers.execute db ()
   >>= function
   | Error error -> fail error
   | Ok rows ->
       if List.length rows <> 1000 then
         failwith (Printf.sprintf "execute returned %d rows, expected 1000" (List.length rows));
-      Queries.List_numbers.fold db () ~init:(0, 0L)
-        ~f:(fun (row : Queries.List_numbers.row) (count, sum) ->
+      Queries.ListNumbers.fold db () ~init:(0, 0L)
+        ~f:(fun (row : Queries.ListNumbers.row) (count, sum) ->
           (count + 1, Int64.add sum row.value))
       >>= function
       | Error error -> fail error

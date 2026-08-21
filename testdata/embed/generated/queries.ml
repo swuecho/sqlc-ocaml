@@ -10,7 +10,7 @@ type scores = {
   score : int32;
 }
 
-module Get_student_score = struct
+module GetStudentScore = struct
   type params = {
     id : int64;
   }
@@ -19,12 +19,30 @@ module Get_student_score = struct
     scores : scores;
   }
 
+  let sql =
+    {sql|SELECT students.id, students.name, scores.student_id, scores.score
+FROM students
+JOIN scores ON scores.student_id = students.id
+WHERE students.id = ?|sql}
+
+  let params_type =
+    Caqti_type.int64
+
+  let row_type =
+    Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.int64)) (Caqti_type.int32)
+
+  let encode_params (params : params) =
+    params.id
+
+  let decode_row (((v_students_id, v_students_name), v_scores_student_id), v_scores_score) =
+    { students = { id = v_students_id; name = v_students_name }; scores = { student_id = v_scores_student_id; score = v_scores_score } }
+
   let request =
     let open Caqti_request.Infix in
-    ((Caqti_type.int64) ->! (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.t2 (Caqti_type.int64) (Caqti_type.string)) (Caqti_type.int64)) (Caqti_type.int32))) "SELECT students.id, students.name, scores.student_id, scores.score\nFROM students\nJOIN scores ON scores.student_id = students.id\nWHERE students.id = ?"
+    (params_type ->! row_type) sql
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
-    Db.find request params.id
-    |> Lwt.map (Result.map (fun (((v_students_id, v_students_name), v_scores_student_id), v_scores_score) -> { students = { id = v_students_id; name = v_students_name }; scores = { student_id = v_scores_student_id; score = v_scores_score } }))
+    Db.find request (encode_params params)
+    |> Lwt.map (Result.map decode_row)
 end
 
