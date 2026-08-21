@@ -59,6 +59,9 @@ sql:
 ```
 
 Each query is emitted as a module with `params`, optional `row`, and `execute`. Query parameters are always records, except a parameterless query uses `unit`.
+When generated queries use PostgreSQL arrays, the plugin also emits
+`sqlc_runtime.ml` and `sqlc_runtime.mli`. Include both files in explicit build
+manifests and container `COPY` instructions alongside the generated query files.
 The `filename` also determines the enclosing OCaml compilation-unit name
 (`queries.ml` becomes `Queries`).
 The `runtime` option selects `Caqti_lwt.CONNECTION`/`Lwt.t` (the default) or
