@@ -34,4 +34,4 @@ let main () =
   | Error error -> fail error
   | Ok db -> verify db
 
-let () = never_returns (Scheduler.go_main ~main ())
+let () = Stdlib.ignore (Scheduler.go_main ~main ())
