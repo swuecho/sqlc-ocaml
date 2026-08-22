@@ -155,6 +155,9 @@ func (g *gen) render(program Program) ([]byte, []byte, error) {
 	for _, model := range program.Models {
 		renderModel(&ml, &mli, model)
 	}
+	for _, row := range program.SharedRows {
+		renderModel(&ml, &mli, row)
+	}
 	for _, query := range program.Queries {
 		g.renderQuery(&ml, &mli, query)
 	}
@@ -326,7 +329,12 @@ func (g *gen) renderQuery(ml, mli *bytes.Buffer, q Query) {
 	fmt.Fprintf(mli, "module %s : sig\n", q.ModuleName)
 	renderRecord(ml, mli, q.Params)
 	if q.Row != nil {
-		renderRecord(ml, mli, *q.Row)
+		if q.SharedRow != "" {
+			fmt.Fprintf(ml, "  type row = %s\n", q.SharedRow)
+			fmt.Fprintf(mli, "  type row = %s\n", q.SharedRow)
+		} else {
+			renderRecord(ml, mli, *q.Row)
+		}
 	}
 
 	requestOp, method, result := cardinalityRendering(q.Cardinality)

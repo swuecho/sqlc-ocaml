@@ -37,16 +37,7 @@ let todo_json ~id ~title ~completed ~order =
       ("order", `Int (Int32.to_int order));
       ("url", `String (Printf.sprintf "%s/%Ld" public_todos_url id)) ]
 
-let list_row_json (row : Queries.ListTodos.row) =
-  todo_json ~id:row.id ~title:row.title ~completed:row.completed ~order:row.order
-
-let get_row_json (row : Queries.GetTodo.row) =
-  todo_json ~id:row.id ~title:row.title ~completed:row.completed ~order:row.order
-
-let create_row_json (row : Queries.CreateTodo.row) =
-  todo_json ~id:row.id ~title:row.title ~completed:row.completed ~order:row.order
-
-let patch_row_json (row : Queries.PatchTodo.row) =
+let todo_row_json (row : Queries.todo_row) =
   todo_json ~id:row.id ~title:row.title ~completed:row.completed ~order:row.order
 
 let int64_param request =
@@ -107,7 +98,7 @@ let optional_order_field fields =
 let get_all _request =
   let* result = database (fun db -> Queries.ListTodos.execute db ()) in
   match result with
-  | Ok todos -> json (`List (List.map list_row_json todos))
+  | Ok todos -> json (`List (List.map todo_row_json todos))
   | Error db_error -> error ~status:`Internal_Server_Error (Caqti_error.show db_error)
 
 let get_one request =
@@ -116,7 +107,7 @@ let get_one request =
   | Ok id ->
       let* result = database (fun db -> Queries.GetTodo.execute db { id }) in
       (match result with
-      | Ok (todo :: _) -> json (get_row_json todo)
+      | Ok (todo :: _) -> json (todo_row_json todo)
       | Ok [] -> error ~status:`Not_Found "todo not found"
       | Error db_error -> error ~status:`Internal_Server_Error (Caqti_error.show db_error))
 
@@ -130,7 +121,7 @@ let create request =
           let params : Queries.CreateTodo.params = { title; completed; todo_order = order } in
           let* result = database (fun db -> Queries.CreateTodo.execute db params) in
           (match result with
-          | Ok todo -> json ~status:`Created (create_row_json todo)
+          | Ok todo -> json ~status:`Created (todo_row_json todo)
           | Error db_error -> error ~status:`Internal_Server_Error (Caqti_error.show db_error))
       | Error message, _, _ | _, Error message, _ | _, _, Error message -> error message)
 
@@ -147,7 +138,7 @@ let patch request =
               let params : Queries.PatchTodo.params = { id; title; completed; todo_order } in
               let* result = database (fun db -> Queries.PatchTodo.execute db params) in
               (match result with
-              | Ok (updated :: _) -> json (patch_row_json updated)
+              | Ok (updated :: _) -> json (todo_row_json updated)
               | Ok [] -> error ~status:`Not_Found "todo not found"
               | Error db_error -> error ~status:`Internal_Server_Error (Caqti_error.show db_error))
           | Error message, _, _ | _, Error message, _ | _, _, Error message -> error message))

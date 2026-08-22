@@ -59,6 +59,9 @@ sql:
 ```
 
 Each query is emitted as a module with `params`, optional `row`, and `execute`. Query parameters are always records, except a parameterless query uses `unit`.
+When two or more queries return the same record shape, the generator emits one
+top-level row type and aliases each module's `row` to it. This makes the query
+results interchangeable while preserving the module-local `row` API.
 When generated queries use PostgreSQL arrays, the plugin also emits
 `sqlc_runtime.ml` and `sqlc_runtime.mli`. Include both files in explicit build
 manifests and container `COPY` instructions alongside the generated query files.

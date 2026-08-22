@@ -7,18 +7,20 @@ type todos = {
   todo_order : int32;
 }
 
+type todo_row = {
+  id : int64;
+  title : string;
+  completed : bool;
+  order : int32;
+}
+
 module CreateTodo = struct
   type params = {
     title : string;
     completed : bool;
     todo_order : int32;
   }
-  type row = {
-    id : int64;
-    title : string;
-    completed : bool;
-    order : int32;
-  }
+  type row = todo_row
 
   let sql =
     {sql|INSERT INTO todos (title, completed, todo_order)
@@ -48,12 +50,7 @@ end
 
 module ListTodos = struct
   type params = unit
-  type row = {
-    id : int64;
-    title : string;
-    completed : bool;
-    order : int32;
-  }
+  type row = todo_row
 
   let sql =
     {sql|SELECT id, title, completed, todo_order AS "order"
@@ -88,12 +85,7 @@ module GetTodo = struct
   type params = {
     id : int64;
   }
-  type row = {
-    id : int64;
-    title : string;
-    completed : bool;
-    order : int32;
-  }
+  type row = todo_row
 
   let sql =
     {sql|SELECT id, title, completed, todo_order AS "order"
@@ -131,12 +123,7 @@ module PatchTodo = struct
     todo_order : int32 option;
     id : int64;
   }
-  type row = {
-    id : int64;
-    title : string;
-    completed : bool;
-    order : int32;
-  }
+  type row = todo_row
 
   let sql =
     {sql|UPDATE todos

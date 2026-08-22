@@ -8,18 +8,20 @@ type todos = {
   created_at : Ptime.t;
 }
 
+type todo_row = {
+  id : int64;
+  title : string;
+  tags : string list;
+  completed : bool;
+  created_at : Ptime.t;
+}
+
 module CreateTodo = struct
   type params = {
     title : string;
     tags : string list;
   }
-  type row = {
-    id : int64;
-    title : string;
-    tags : string list;
-    completed : bool;
-    created_at : Ptime.t;
-  }
+  type row = todo_row
 
   let sql =
     {sql|INSERT INTO todos (title, tags)
@@ -49,13 +51,7 @@ end
 
 module ListTodos = struct
   type params = unit
-  type row = {
-    id : int64;
-    title : string;
-    tags : string list;
-    completed : bool;
-    created_at : Ptime.t;
-  }
+  type row = todo_row
 
   let sql =
     {sql|SELECT id, title, tags, completed, created_at
@@ -90,13 +86,7 @@ module ListTodosByIds = struct
   type params = {
     ids : int64 list;
   }
-  type row = {
-    id : int64;
-    title : string;
-    tags : string list;
-    completed : bool;
-    created_at : Ptime.t;
-  }
+  type row = todo_row
 
   let sql =
     {sql|SELECT id, title, tags, completed, created_at
@@ -132,13 +122,7 @@ module CompleteTodo = struct
   type params = {
     id : int64;
   }
-  type row = {
-    id : int64;
-    title : string;
-    tags : string list;
-    completed : bool;
-    created_at : Ptime.t;
-  }
+  type row = todo_row
 
   let sql =
     {sql|UPDATE todos

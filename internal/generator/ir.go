@@ -11,9 +11,10 @@ import (
 // Program is the normalized, protocol-independent view consumed by the OCaml
 // renderer. Protocol details and PostgreSQL type resolution stop here.
 type Program struct {
-	Enums   []Enum
-	Models  []Record
-	Queries []Query
+	Enums      []Enum
+	Models     []Record
+	SharedRows []Record
+	Queries    []Query
 }
 
 type Enum struct {
@@ -46,6 +47,7 @@ type Query struct {
 	Params      Record
 	Bindings    []ParameterBinding
 	Row         *Record
+	SharedRow   string
 }
 
 // ParameterBinding identifies the logical parameter field used by one SQL
@@ -170,7 +172,80 @@ func (g *gen) normalize() (Program, error) {
 		seen[query.ModuleName] = true
 		program.Queries = append(program.Queries, query)
 	}
+	shareIdenticalRows(&program, g.req.Queries, typeNames)
 	return program, nil
+}
+
+// shareIdenticalRows hoists result records used by multiple queries. OCaml
+// records are nominal, so aliases to a shared top-level record let callers use
+// one function for queries returning the same projection.
+func shareIdenticalRows(program *Program, sources []*plugin.Query, typeNames map[string]string) {
+	groups := map[string][]int{}
+	for i, query := range program.Queries {
+		if query.Row != nil {
+			groups[recordShape(*query.Row)] = append(groups[recordShape(*query.Row)], i)
+		}
+	}
+	seenShapes := map[string]bool{}
+	for i, query := range program.Queries {
+		if query.Row == nil {
+			continue
+		}
+		shape := recordShape(*query.Row)
+		if seenShapes[shape] {
+			continue
+		}
+		seenShapes[shape] = true
+		indexes := groups[shape]
+		if len(indexes) < 2 {
+			continue
+		}
+		first := i
+		name := sharedRowName(sources[first], program.Queries[first])
+		base := name
+		for suffix := 2; typeNames[name] != ""; suffix++ {
+			name = fmt.Sprintf("%s_%d", base, suffix)
+		}
+		typeNames[name] = "shared query row"
+		shared := *program.Queries[first].Row
+		shared.TypeName = name
+		program.SharedRows = append(program.SharedRows, shared)
+		for _, index := range indexes {
+			program.Queries[index].SharedRow = name
+		}
+	}
+}
+
+func recordShape(record Record) string {
+	var b strings.Builder
+	for _, field := range record.Fields {
+		fmt.Fprintf(&b, "%d:%s%d:%s;", len(field.Name), field.Name, len(field.Type.Name), field.Type.Name)
+	}
+	return b.String()
+}
+
+func sharedRowName(source *plugin.Query, query Query) string {
+	var table string
+	for _, column := range source.Columns {
+		if column == nil || column.Table == nil || column.Table.Name == "" {
+			table = ""
+			break
+		}
+		if table == "" {
+			table = column.Table.Name
+		} else if !strings.EqualFold(table, column.Table.Name) {
+			table = ""
+			break
+		}
+	}
+	if table != "" {
+		name := snake(table)
+		if strings.HasSuffix(name, "s") && !strings.HasSuffix(name, "ss") {
+			name = strings.TrimSuffix(name, "s")
+		}
+		return name + "_row"
+	}
+	return snake(query.SourceName) + "_row"
 }
 
 func (g *gen) normalizeQuery(source *plugin.Query) (Query, error) {

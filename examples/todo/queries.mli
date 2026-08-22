@@ -8,19 +8,21 @@ type todos = {
   created_at : Ptime.t;
 }
 
+type todo_row = {
+  id : int64;
+  title : string;
+  tags : string list;
+  completed : bool;
+  created_at : Ptime.t;
+}
+
 (** Query [CreateTodo] (returns exactly one row). *)
 module CreateTodo : sig
   type params = {
     title : string;
     tags : string list;
   }
-  type row = {
-    id : int64;
-    title : string;
-    tags : string list;
-    completed : bool;
-    created_at : Ptime.t;
-  }
+  type row = todo_row
 
   (** Execute [CreateTodo]. *)
   val execute :
@@ -32,13 +34,7 @@ end
 (** Query [ListTodos] (returns zero or more rows). *)
 module ListTodos : sig
   type params = unit
-  type row = {
-    id : int64;
-    title : string;
-    tags : string list;
-    completed : bool;
-    created_at : Ptime.t;
-  }
+  type row = todo_row
 
   (** Execute [ListTodos]. *)
   val execute :
@@ -60,13 +56,7 @@ module ListTodosByIds : sig
   type params = {
     ids : int64 list;
   }
-  type row = {
-    id : int64;
-    title : string;
-    tags : string list;
-    completed : bool;
-    created_at : Ptime.t;
-  }
+  type row = todo_row
 
   (** Execute [ListTodosByIds]. *)
   val execute :
@@ -88,13 +78,7 @@ module CompleteTodo : sig
   type params = {
     id : int64;
   }
-  type row = {
-    id : int64;
-    title : string;
-    tags : string list;
-    completed : bool;
-    created_at : Ptime.t;
-  }
+  type row = todo_row
 
   (** Execute [CompleteTodo]. *)
   val execute :

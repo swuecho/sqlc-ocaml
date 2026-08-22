@@ -6,16 +6,18 @@ type users = {
   email : Email.t option;
 }
 
+type user_row = {
+  id : int64;
+  display_name : string;
+  email : Email.t option;
+}
+
 module CreateUser = struct
   type params = {
     display_name : string;
     email : Email.t option;
   }
-  type row = {
-    id : int64;
-    display_name : string;
-    email : Email.t option;
-  }
+  type row = user_row
 
   let sql =
     {sql|INSERT INTO users (display_name, email)
@@ -45,11 +47,7 @@ end
 
 module ListUsers = struct
   type params = unit
-  type row = {
-    id : int64;
-    display_name : string;
-    email : Email.t option;
-  }
+  type row = user_row
 
   let sql =
     {sql|SELECT id, display_name, email

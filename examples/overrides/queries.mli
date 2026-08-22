@@ -6,17 +6,19 @@ type users = {
   email : Email.t option;
 }
 
+type user_row = {
+  id : int64;
+  display_name : string;
+  email : Email.t option;
+}
+
 (** Query [CreateUser] (returns exactly one row). *)
 module CreateUser : sig
   type params = {
     display_name : string;
     email : Email.t option;
   }
-  type row = {
-    id : int64;
-    display_name : string;
-    email : Email.t option;
-  }
+  type row = user_row
 
   (** Execute [CreateUser]. *)
   val execute :
@@ -28,11 +30,7 @@ end
 (** Query [ListUsers] (returns zero or more rows). *)
 module ListUsers : sig
   type params = unit
-  type row = {
-    id : int64;
-    display_name : string;
-    email : Email.t option;
-  }
+  type row = user_row
 
   (** Execute [ListUsers]. *)
   val execute :

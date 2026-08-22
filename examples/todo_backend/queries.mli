@@ -7,6 +7,13 @@ type todos = {
   todo_order : int32;
 }
 
+type todo_row = {
+  id : int64;
+  title : string;
+  completed : bool;
+  order : int32;
+}
+
 (** Query [CreateTodo] (returns exactly one row). *)
 module CreateTodo : sig
   type params = {
@@ -14,12 +21,7 @@ module CreateTodo : sig
     completed : bool;
     todo_order : int32;
   }
-  type row = {
-    id : int64;
-    title : string;
-    completed : bool;
-    order : int32;
-  }
+  type row = todo_row
 
   (** Execute [CreateTodo]. *)
   val execute :
@@ -31,12 +33,7 @@ end
 (** Query [ListTodos] (returns zero or more rows). *)
 module ListTodos : sig
   type params = unit
-  type row = {
-    id : int64;
-    title : string;
-    completed : bool;
-    order : int32;
-  }
+  type row = todo_row
 
   (** Execute [ListTodos]. *)
   val execute :
@@ -58,12 +55,7 @@ module GetTodo : sig
   type params = {
     id : int64;
   }
-  type row = {
-    id : int64;
-    title : string;
-    completed : bool;
-    order : int32;
-  }
+  type row = todo_row
 
   (** Execute [GetTodo]. *)
   val execute :
@@ -88,12 +80,7 @@ module PatchTodo : sig
     todo_order : int32 option;
     id : int64;
   }
-  type row = {
-    id : int64;
-    title : string;
-    completed : bool;
-    order : int32;
-  }
+  type row = todo_row
 
   (** Execute [PatchTodo]. *)
   val execute :

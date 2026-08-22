@@ -86,6 +86,34 @@ func TestGenerateMVP(t *testing.T) {
 	}
 }
 
+func TestIdenticalQueryRowsUseSharedType(t *testing.T) {
+	r := request()
+	table := ident("todos")
+	columns := func() []*plugin.Column {
+		return []*plugin.Column{
+			{Name: "id", Type: ident("bigint"), NotNull: true, Table: table},
+			{Name: "title", Type: ident("text"), NotNull: true, Table: table},
+		}
+	}
+	r.Queries = []*plugin.Query{
+		{Name: "ListTodos", Cmd: ":many", Text: "SELECT id, title FROM todos", Columns: columns()},
+		{Name: "GetTodo", Cmd: ":one", Text: "SELECT id, title FROM todos", Columns: columns()},
+	}
+	resp, err := Generate(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ml, mli := string(resp.Files[0].Contents), string(resp.Files[1].Contents)
+	for _, output := range []string{ml, mli} {
+		if got := strings.Count(output, "type todo_row = {"); got != 1 {
+			t.Errorf("shared row declaration count = %d, want 1", got)
+		}
+		if got := strings.Count(output, "  type row = todo_row"); got != 2 {
+			t.Errorf("row alias count = %d, want 2", got)
+		}
+	}
+}
+
 func TestGenerateAsyncRuntime(t *testing.T) {
 	r := request()
 	b, _ := json.Marshal(Options{Filename: "queries", Runtime: "async"})
