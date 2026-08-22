@@ -119,6 +119,40 @@ func TestRejectsUnknownRuntime(t *testing.T) {
 	}
 }
 
+func TestRejectsInvalidOutputFilename(t *testing.T) {
+	for _, filename := range []string{"../queries", "Queries", "queries-file", ".ml"} {
+		r := request()
+		b, _ := json.Marshal(Options{Filename: filename})
+		r.PluginOptions = b
+		if _, err := Generate(r); err == nil || !strings.Contains(err.Error(), "invalid filename") {
+			t.Errorf("filename %q produced unexpected error: %v", filename, err)
+		}
+	}
+}
+
+func TestRejectsTopLevelTypeNameCollisions(t *testing.T) {
+	r := request()
+	r.Catalog.Schemas[0].Enums = []*plugin.Enum{{Name: "user-profile", Vals: []string{"active"}}}
+	r.Catalog.Schemas[0].Tables = []*plugin.Table{{Rel: &plugin.Identifier{Schema: "public", Name: "user_profile"}}}
+	r.Queries = nil
+	if _, err := Generate(r); err == nil || !strings.Contains(err.Error(), `OCaml type name "user_profile"`) {
+		t.Fatalf("unexpected collision error: %v", err)
+	}
+}
+
+func TestRejectsNullProtocolEntries(t *testing.T) {
+	r := request()
+	r.Queries = append(r.Queries, nil)
+	if _, err := Generate(r); err == nil || !strings.Contains(err.Error(), "query 4 is null") {
+		t.Fatalf("unexpected null query error: %v", err)
+	}
+	r = request()
+	r.Catalog.Schemas = append(r.Catalog.Schemas, nil)
+	if _, err := Generate(r); err == nil || !strings.Contains(err.Error(), "schema 2 is null") {
+		t.Fatalf("unexpected null schema error: %v", err)
+	}
+}
+
 func TestSchemaQualifiedModelsAndEnums(t *testing.T) {
 	r := request()
 	publicUsers := &plugin.Table{Rel: &plugin.Identifier{Schema: "public", Name: "users"}, Columns: []*plugin.Column{col("id", "bigint", true)}}
@@ -264,6 +298,37 @@ func TestCaqtiSQL(t *testing.T) {
 	}
 	if _, _, err := caqtiSQL("SELECT $3", 2); err == nil {
 		t.Fatal("expected unknown placeholder error")
+	}
+}
+
+func TestCaqtiSQLPostgresLexicalForms(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		want string
+	}{
+		{"dollar quoted", "SELECT $$body $1$$, $tag$also $1$tag$, $1", "SELECT $$body $1$$, $tag$also $1$tag$, ?"},
+		{"escaped string", "SELECT E'can\\'t $1', $1", "SELECT E'can\\'t $1', ?"},
+		{"nested comment", "SELECT /* outer $1 /* inner $1 */ still $1 */ $1", "SELECT /* outer $1 /* inner $1 */ still $1 */ ?"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, bindings, err := caqtiSQL(tt.sql, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want || !reflect.DeepEqual(bindings, []int{1}) {
+				t.Fatalf("caqtiSQL() = %q, %v; want %q, [1]", got, bindings, tt.want)
+			}
+		})
+	}
+}
+
+func TestCaqtiSQLRejectsUnterminatedLexicalForms(t *testing.T) {
+	for _, sql := range []string{"SELECT $$unterminated $1", "SELECT /* outer /* inner */ $1"} {
+		if _, _, err := caqtiSQL(sql, 1); err == nil {
+			t.Errorf("caqtiSQL(%q) unexpectedly succeeded", sql)
+		}
 	}
 }
 

@@ -86,6 +86,7 @@ func normalizedOCamlType(column *plugin.Column, mapped mappedType) OCamlType {
 
 func (g *gen) normalize() (Program, error) {
 	program := Program{}
+	typeNames := map[string]string{}
 	if g.models == nil {
 		g.models = map[string]Record{}
 	}
@@ -96,6 +97,10 @@ func (g *gen) normalize() (Program, error) {
 	for _, info := range enums {
 		e := info.Enum
 		item := Enum{DatabaseName: e.Name, TypeName: info.TypeName, CodecName: info.TypeName + "_type"}
+		if previous, exists := typeNames[item.TypeName]; exists {
+			return Program{}, fmt.Errorf("OCaml type name %q is generated for both %s and enum %s.%s", item.TypeName, previous, info.Schema, e.Name)
+		}
+		typeNames[item.TypeName] = fmt.Sprintf("enum %s.%s", info.Schema, e.Name)
 		for _, value := range e.Vals {
 			item.Values = append(item.Values, EnumValue{DatabaseName: value, Constructor: constructor(value)})
 		}
@@ -119,6 +124,11 @@ func (g *gen) normalize() (Program, error) {
 				if tableCounts[strings.ToLower(table.Rel.Name)] > 1 {
 					typeName = snake(schema.Name + "_" + table.Rel.Name)
 				}
+				objectName := fmt.Sprintf("table %s.%s", schema.Name, table.Rel.Name)
+				if previous, exists := typeNames[typeName]; exists {
+					return Program{}, fmt.Errorf("OCaml type name %q is generated for both %s and %s", typeName, previous, objectName)
+				}
+				typeNames[typeName] = objectName
 				model, err := g.normalizeRecord(typeName, table.Columns)
 				if err != nil {
 					return Program{}, fmt.Errorf("table %s: %w", table.Rel.Name, err)
@@ -140,7 +150,10 @@ func (g *gen) normalize() (Program, error) {
 	}
 
 	seen := map[string]bool{}
-	for _, source := range g.req.Queries {
+	for i, source := range g.req.Queries {
+		if source == nil {
+			return Program{}, fmt.Errorf("query %d is null", i+1)
+		}
 		query, err := g.normalizeQuery(source)
 		if err != nil {
 			return Program{}, fmt.Errorf("query %s: %w", source.Name, err)

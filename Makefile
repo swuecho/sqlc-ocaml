@@ -3,7 +3,9 @@
 SQLC_VERSION ?= 1.30.0
 PLUGIN_GOARCH ?= $(shell go env GOARCH)
 EXAMPLE_BASE_IMAGE ?= sqlc-ocaml-example-base:local
+GOCACHE ?= $(CURDIR)/.cache/go-build
 export EXAMPLE_BASE_IMAGE
+export GOCACHE
 
 build:
 	go build -o bin/sqlc-gen-ocaml ./cmd/sqlc-gen-ocaml

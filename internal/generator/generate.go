@@ -63,6 +63,9 @@ func Generate(req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
 		return nil, fmt.Errorf("invalid runtime %q (supported: lwt, async)", opts.Runtime)
 	}
 	opts.Filename = strings.TrimSuffix(strings.TrimSuffix(opts.Filename, ".ml"), ".mli")
+	if !validOutputFilename(opts.Filename) {
+		return nil, fmt.Errorf("invalid filename %q (expected an OCaml basename such as queries or db_queries)", opts.Filename)
+	}
 	g := &gen{req: req, opts: opts, overrides: map[string]mappedType{}, enums: map[string]enumInfo{}, models: map[string]Record{}}
 	for _, o := range opts.Overrides {
 		if (o.DBType == "") == (o.Column == "") || o.Type == "" || o.Codec == "" {
@@ -76,8 +79,14 @@ func Generate(req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
 	}
 	if req.Catalog != nil {
 		counts := map[string]int{}
-		for _, s := range req.Catalog.Schemas {
+		for i, s := range req.Catalog.Schemas {
+			if s == nil {
+				return nil, fmt.Errorf("catalog schema %d is null", i+1)
+			}
 			for _, e := range s.Enums {
+				if e == nil {
+					return nil, fmt.Errorf("catalog schema %q contains a null enum", s.Name)
+				}
 				counts[strings.ToLower(e.Name)]++
 			}
 		}
@@ -112,6 +121,19 @@ func Generate(req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
 		)
 	}
 	return &plugin.GenerateResponse{Files: files}, nil
+}
+
+func validOutputFilename(name string) bool {
+	if name == "" || name[0] < 'a' || name[0] > 'z' {
+		return false
+	}
+	for i := 1; i < len(name); i++ {
+		c := name[i]
+		if c != '_' && (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') {
+			return false
+		}
+	}
+	return true
 }
 
 func (g *gen) render(program Program) ([]byte, []byte, error) {
@@ -292,11 +314,26 @@ func caqtiSQL(sql string, params int) (string, []int, error) {
 	var b strings.Builder
 	var occurrences []int
 	for i := 0; i < len(sql); {
+		if delimiter, ok := dollarQuoteDelimiter(sql, i); ok {
+			end := strings.Index(sql[i+len(delimiter):], delimiter)
+			if end < 0 {
+				return "", nil, fmt.Errorf("unterminated SQL dollar-quoted string")
+			}
+			end += i + 2*len(delimiter)
+			b.WriteString(sql[i:end])
+			i = end
+			continue
+		}
 		if sql[i] == '\'' || sql[i] == '"' {
 			quote := sql[i]
 			start := i
+			escapeBackslash := quote == '\'' && i > 0 && (sql[i-1] == 'e' || sql[i-1] == 'E') && (i == 1 || !isSQLIdentifierByte(sql[i-2]))
 			i++
 			for i < len(sql) {
+				if escapeBackslash && sql[i] == '\\' && i+1 < len(sql) {
+					i += 2
+					continue
+				}
 				if sql[i] == quote {
 					i++
 					if i < len(sql) && sql[i] == quote {
@@ -323,13 +360,24 @@ func caqtiSQL(sql string, params int) (string, []int, error) {
 			continue
 		}
 		if i+1 < len(sql) && sql[i:i+2] == "/*" {
-			j := strings.Index(sql[i+2:], "*/")
-			if j < 0 {
+			start, depth := i, 1
+			i += 2
+			for i < len(sql) && depth > 0 {
+				switch {
+				case i+1 < len(sql) && sql[i:i+2] == "/*":
+					depth++
+					i += 2
+				case i+1 < len(sql) && sql[i:i+2] == "*/":
+					depth--
+					i += 2
+				default:
+					i++
+				}
+			}
+			if depth != 0 {
 				return "", nil, fmt.Errorf("unterminated SQL block comment")
 			}
-			j += i + 4
-			b.WriteString(sql[i:j])
-			i = j
+			b.WriteString(sql[start:i])
 			continue
 		}
 		if sql[i] == '$' && i+1 < len(sql) && sql[i+1] >= '0' && sql[i+1] <= '9' {
@@ -359,6 +407,30 @@ func caqtiSQL(sql string, params int) (string, []int, error) {
 		}
 	}
 	return b.String(), occurrences, nil
+}
+
+func dollarQuoteDelimiter(sql string, start int) (string, bool) {
+	if start >= len(sql) || sql[start] != '$' {
+		return "", false
+	}
+	for i := start + 1; i < len(sql); i++ {
+		if sql[i] == '$' {
+			return sql[start : i+1], true
+		}
+		if (i == start+1 && !isSQLIdentifierStartByte(sql[i])) ||
+			(i > start+1 && !isSQLIdentifierByte(sql[i])) {
+			return "", false
+		}
+	}
+	return "", false
+}
+
+func isSQLIdentifierStartByte(c byte) bool {
+	return c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
+func isSQLIdentifierByte(c byte) bool {
+	return isSQLIdentifierStartByte(c) || c >= '0' && c <= '9'
 }
 
 func (g *gen) renderQuery(ml, mli *bytes.Buffer, q Query) {

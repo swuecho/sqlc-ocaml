@@ -26,3 +26,10 @@ func TestJSONProtocol(t *testing.T) {
 		t.Fatalf("unexpected response: %s", out.String())
 	}
 }
+
+func TestJSONProtocolRejectsTrailingValue(t *testing.T) {
+	input := `{"settings":{"engine":"postgresql"}} {}`
+	if err := run(bytes.NewBufferString(input), &bytes.Buffer{}); err == nil {
+		t.Fatal("expected trailing JSON value to be rejected")
+	}
+}

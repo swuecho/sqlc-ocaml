@@ -19,8 +19,16 @@ func main() {
 
 func run(in io.Reader, out io.Writer) error {
 	var req plugin.GenerateRequest
-	if err := json.NewDecoder(in).Decode(&req); err != nil {
+	decoder := json.NewDecoder(in)
+	if err := decoder.Decode(&req); err != nil {
 		return fmt.Errorf("decode request: %w", err)
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("decode request: unexpected trailing JSON value")
+		}
+		return fmt.Errorf("decode request trailing data: %w", err)
 	}
 	resp, err := generator.Generate(&req)
 	if err != nil {
