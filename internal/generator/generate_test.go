@@ -130,6 +130,14 @@ func TestRejectsInvalidOutputFilename(t *testing.T) {
 	}
 }
 
+func TestRejectsUnknownPluginOption(t *testing.T) {
+	r := request()
+	r.PluginOptions = json.RawMessage(`{"runime":"async"}`)
+	if _, err := Generate(r); err == nil || !strings.Contains(err.Error(), `unknown field "runime"`) {
+		t.Fatalf("unexpected plugin-option error: %v", err)
+	}
+}
+
 func TestRejectsTopLevelTypeNameCollisions(t *testing.T) {
 	r := request()
 	r.Catalog.Schemas[0].Enums = []*plugin.Enum{{Name: "user-profile", Vals: []string{"active"}}}
@@ -150,6 +158,19 @@ func TestRejectsNullProtocolEntries(t *testing.T) {
 	r.Catalog.Schemas = append(r.Catalog.Schemas, nil)
 	if _, err := Generate(r); err == nil || !strings.Contains(err.Error(), "schema 2 is null") {
 		t.Fatalf("unexpected null schema error: %v", err)
+	}
+	r = request()
+	r.Queries[0].Columns[0] = nil
+	if _, err := Generate(r); err == nil || !strings.Contains(err.Error(), "field 1 has no column metadata") {
+		t.Fatalf("unexpected null column error: %v", err)
+	}
+}
+
+func TestRejectsEnumConstructorCollisions(t *testing.T) {
+	r := request()
+	r.Catalog.Schemas[0].Enums[0].Vals = []string{"in-progress", "in_progress"}
+	if _, err := Generate(r); err == nil || !strings.Contains(err.Error(), `both generate OCaml constructor "In_progress"`) {
+		t.Fatalf("unexpected enum-constructor error: %v", err)
 	}
 }
 
@@ -325,7 +346,7 @@ func TestCaqtiSQLPostgresLexicalForms(t *testing.T) {
 }
 
 func TestCaqtiSQLRejectsUnterminatedLexicalForms(t *testing.T) {
-	for _, sql := range []string{"SELECT $$unterminated $1", "SELECT /* outer /* inner */ $1"} {
+	for _, sql := range []string{"SELECT $$unterminated $1", "SELECT /* outer /* inner */ $1", "SELECT 'unterminated $1", `SELECT "unterminated $1`} {
 		if _, _, err := caqtiSQL(sql, 1); err == nil {
 			t.Errorf("caqtiSQL(%q) unexpectedly succeeded", sql)
 		}

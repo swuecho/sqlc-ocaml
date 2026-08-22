@@ -101,8 +101,14 @@ func (g *gen) normalize() (Program, error) {
 			return Program{}, fmt.Errorf("OCaml type name %q is generated for both %s and enum %s.%s", item.TypeName, previous, info.Schema, e.Name)
 		}
 		typeNames[item.TypeName] = fmt.Sprintf("enum %s.%s", info.Schema, e.Name)
+		constructors := make(map[string]string, len(e.Vals))
 		for _, value := range e.Vals {
-			item.Values = append(item.Values, EnumValue{DatabaseName: value, Constructor: constructor(value)})
+			name := constructor(value)
+			if previous, exists := constructors[name]; exists {
+				return Program{}, fmt.Errorf("enum %s.%s values %q and %q both generate OCaml constructor %q", info.Schema, e.Name, previous, value, name)
+			}
+			constructors[name] = value
+			item.Values = append(item.Values, EnumValue{DatabaseName: value, Constructor: name})
 		}
 		program.Enums = append(program.Enums, item)
 	}

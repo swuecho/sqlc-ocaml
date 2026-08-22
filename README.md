@@ -81,6 +81,8 @@ Overrides select either `db_type` or `column`. A column may be written as
 Column rules take precedence over database-type rules. Nullable values still
 receive the generated OCaml `option` wrapper, so override `type` and `codec`
 describe the non-null element.
+Unknown plugin option names are rejected so configuration typos cannot silently
+select defaults.
 
 ```ocaml
 Queries.FindUser.execute db { id = 42L }
@@ -148,6 +150,7 @@ Use the narrowest check that covers your change:
 
 ```sh
 make quickcheck       # Go tests and vet; no Docker or database required
+make fuzz             # fuzz the PostgreSQL placeholder lexer
 make generated-check # regenerate examples and check for stale output; needs Docker
 make e2e              # complete OCaml/PostgreSQL integration suite; needs Docker
 ```

@@ -1,4 +1,4 @@
-.PHONY: build plugin-linux example-base quickcheck generated-check e2e examples-e2e test check todo-generate todo-e2e todo-backend-generate todo-backend-e2e overrides-generate overrides-e2e async-generate async-e2e gen
+.PHONY: build plugin-linux example-base quickcheck fuzz generated-check e2e examples-e2e test check todo-generate todo-e2e todo-backend-generate todo-backend-e2e overrides-generate overrides-e2e async-generate async-e2e gen
 
 SQLC_VERSION ?= 1.30.0
 PLUGIN_GOARCH ?= $(shell go env GOARCH)
@@ -15,6 +15,9 @@ test:
 
 quickcheck: test
 	go vet ./...
+
+fuzz:
+	go test ./internal/generator -run '^$$' -fuzz=FuzzCaqtiSQL -fuzztime=10s
 
 # Kept as a backwards-compatible alias for the fast, dependency-light checks.
 check: quickcheck
