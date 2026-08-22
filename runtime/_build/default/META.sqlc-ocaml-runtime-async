@@ -1,0 +1,6 @@
+description = ""
+requires = "caqti-async uri"
+archive(byte) = "sqlc_ocaml_runtime_async.cma"
+archive(native) = "sqlc_ocaml_runtime_async.cmxa"
+plugin(byte) = "sqlc_ocaml_runtime_async.cma"
+plugin(native) = "sqlc_ocaml_runtime_async.cmxs"

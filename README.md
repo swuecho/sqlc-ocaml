@@ -96,7 +96,8 @@ Lwt output needs `caqti-lwt` and `lwt`; Async output needs `caqti-async` and
 need `ptime`, `uuidm`, and `yojson`.
 
 Applications can optionally use `sqlc-ocaml-runtime-lwt` or
-`sqlc-ocaml-runtime-async` for a consistent `Pool.connect`/`Pool.use` API. The
+`sqlc-ocaml-runtime-async` for a consistent
+`Database.connect`/`Database.use` API. The
 pool remains application-owned and generated query functions continue to
 accept an explicit database connection, preserving transaction support. See
 [`runtime`](runtime) for package setup and examples.

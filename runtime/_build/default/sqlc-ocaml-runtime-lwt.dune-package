@@ -1,0 +1,37 @@
+(lang dune 3.24)
+(name sqlc-ocaml-runtime-lwt)
+(sections (lib .) (libexec .) (doc ../../doc/sqlc-ocaml-runtime-lwt))
+(files
+ (lib
+  (META
+   dune-package
+   opam
+   sqlc_ocaml_runtime_lwt.a
+   sqlc_ocaml_runtime_lwt.cma
+   sqlc_ocaml_runtime_lwt.cmi
+   sqlc_ocaml_runtime_lwt.cmt
+   sqlc_ocaml_runtime_lwt.cmx
+   sqlc_ocaml_runtime_lwt.cmxa
+   sqlc_ocaml_runtime_lwt.ml))
+ (libexec (sqlc_ocaml_runtime_lwt.cmxs))
+ (doc (README.md)))
+(library
+ (name sqlc-ocaml-runtime-lwt)
+ (kind normal)
+ (archives
+  (byte sqlc_ocaml_runtime_lwt.cma)
+  (native sqlc_ocaml_runtime_lwt.cmxa))
+ (plugins
+  (byte sqlc_ocaml_runtime_lwt.cma)
+  (native sqlc_ocaml_runtime_lwt.cmxs))
+ (native_archives sqlc_ocaml_runtime_lwt.a)
+ (requires caqti-lwt.unix lwt.unix uri)
+ (main_module_name Sqlc_ocaml_runtime_lwt)
+ (modes byte native)
+ (modules
+  (singleton
+   (obj_name sqlc_ocaml_runtime_lwt)
+   (visibility public)
+   (source
+    (path Sqlc_ocaml_runtime_lwt)
+    (impl (path sqlc_ocaml_runtime_lwt.ml))))))

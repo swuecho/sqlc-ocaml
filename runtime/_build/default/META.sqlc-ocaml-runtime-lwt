@@ -1,0 +1,6 @@
+description = ""
+requires = "caqti-lwt.unix lwt.unix uri"
+archive(byte) = "sqlc_ocaml_runtime_lwt.cma"
+archive(native) = "sqlc_ocaml_runtime_lwt.cmxa"
+plugin(byte) = "sqlc_ocaml_runtime_lwt.cma"
+plugin(native) = "sqlc_ocaml_runtime_lwt.cmxs"

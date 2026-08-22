@@ -10,7 +10,9 @@ let public_todos_url =
   Sys.getenv_opt "PUBLIC_TODOS_URL"
   |> Option.value ~default:"http://localhost:8080/todos"
 
-let pool = Runtime.Pool.connect_uri_exn database_url
+let pool = Runtime.Database.connect_uri_exn database_url
+
+let with_database operation = Runtime.Database.use pool operation
 
 let cors_headers =
   [ ("Access-Control-Allow-Origin", "*");
@@ -27,8 +29,6 @@ let json ?(status = `OK) value =
 
 let error ?(status = `Bad_Request) message =
   json ~status (`Assoc [ ("error", `String message) ])
-
-let database operation = Runtime.Pool.use operation pool
 
 let todo_json ~id ~title ~completed ~order =
   `Assoc
@@ -96,7 +96,7 @@ let optional_order_field fields =
   | None -> Ok None
 
 let get_all _request =
-  let* result = database (fun db -> Queries.ListTodos.execute db ()) in
+  let* result = with_database (fun db -> Queries.ListTodos.execute db ()) in
   match result with
   | Ok todos -> json (`List (List.map todo_row_json todos))
   | Error db_error -> error ~status:`Internal_Server_Error (Caqti_error.show db_error)
@@ -105,7 +105,7 @@ let get_one request =
   match int64_param request with
   | Error message -> error message
   | Ok id ->
-      let* result = database (fun db -> Queries.GetTodo.execute db { id }) in
+      let* result = with_database (fun db -> Queries.GetTodo.execute db { id }) in
       (match result with
       | Ok (todo :: _) -> json (todo_row_json todo)
       | Ok [] -> error ~status:`Not_Found "todo not found"
@@ -119,7 +119,7 @@ let create request =
       (match (title_field fields, bool_field ~default:false "completed" fields, order_field ~default:0l fields) with
       | Ok title, Ok completed, Ok order ->
           let params : Queries.CreateTodo.params = { title; completed; todo_order = order } in
-          let* result = database (fun db -> Queries.CreateTodo.execute db params) in
+          let* result = with_database (fun db -> Queries.CreateTodo.execute db params) in
           (match result with
           | Ok todo -> json ~status:`Created (todo_row_json todo)
           | Error db_error -> error ~status:`Internal_Server_Error (Caqti_error.show db_error))
@@ -136,7 +136,7 @@ let patch request =
           (match (optional_title_field fields, optional_bool_field "completed" fields, optional_order_field fields) with
           | Ok title, Ok completed, Ok todo_order ->
               let params : Queries.PatchTodo.params = { id; title; completed; todo_order } in
-              let* result = database (fun db -> Queries.PatchTodo.execute db params) in
+              let* result = with_database (fun db -> Queries.PatchTodo.execute db params) in
               (match result with
               | Ok (updated :: _) -> json (todo_row_json updated)
               | Ok [] -> error ~status:`Not_Found "todo not found"
@@ -147,13 +147,13 @@ let delete_one request =
   match int64_param request with
   | Error message -> error message
   | Ok id ->
-      let* result = database (fun db -> Queries.DeleteTodo.execute db { id }) in
+      let* result = with_database (fun db -> Queries.DeleteTodo.execute db { id }) in
       (match result with
       | Ok () -> Dream.empty `No_Content
       | Error db_error -> error ~status:`Internal_Server_Error (Caqti_error.show db_error))
 
 let delete_all _request =
-  let* result = database (fun db -> Queries.DeleteAllTodos.execute db ()) in
+  let* result = with_database (fun db -> Queries.DeleteAllTodos.execute db ()) in
   match result with
   | Ok () -> Dream.empty `No_Content
   | Error db_error -> error ~status:`Internal_Server_Error (Caqti_error.show db_error)

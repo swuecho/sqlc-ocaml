@@ -1,0 +1,37 @@
+(lang dune 3.24)
+(name sqlc-ocaml-runtime-async)
+(sections (lib .) (libexec .) (doc ../../doc/sqlc-ocaml-runtime-async))
+(files
+ (lib
+  (META
+   dune-package
+   opam
+   sqlc_ocaml_runtime_async.a
+   sqlc_ocaml_runtime_async.cma
+   sqlc_ocaml_runtime_async.cmi
+   sqlc_ocaml_runtime_async.cmt
+   sqlc_ocaml_runtime_async.cmx
+   sqlc_ocaml_runtime_async.cmxa
+   sqlc_ocaml_runtime_async.ml))
+ (libexec (sqlc_ocaml_runtime_async.cmxs))
+ (doc (README.md)))
+(library
+ (name sqlc-ocaml-runtime-async)
+ (kind normal)
+ (archives
+  (byte sqlc_ocaml_runtime_async.cma)
+  (native sqlc_ocaml_runtime_async.cmxa))
+ (plugins
+  (byte sqlc_ocaml_runtime_async.cma)
+  (native sqlc_ocaml_runtime_async.cmxs))
+ (native_archives sqlc_ocaml_runtime_async.a)
+ (requires caqti-async uri)
+ (main_module_name Sqlc_ocaml_runtime_async)
+ (modes byte native)
+ (modules
+  (singleton
+   (obj_name sqlc_ocaml_runtime_async)
+   (visibility public)
+   (source
+    (path Sqlc_ocaml_runtime_async)
+    (impl (path sqlc_ocaml_runtime_async.ml))))))

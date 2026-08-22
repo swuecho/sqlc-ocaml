@@ -1,0 +1,18 @@
+lib: [
+  "_build/install/default/lib/sqlc-ocaml-runtime-lwt/META"
+  "_build/install/default/lib/sqlc-ocaml-runtime-lwt/dune-package"
+  "_build/install/default/lib/sqlc-ocaml-runtime-lwt/opam"
+  "_build/install/default/lib/sqlc-ocaml-runtime-lwt/sqlc_ocaml_runtime_lwt.a"
+  "_build/install/default/lib/sqlc-ocaml-runtime-lwt/sqlc_ocaml_runtime_lwt.cma"
+  "_build/install/default/lib/sqlc-ocaml-runtime-lwt/sqlc_ocaml_runtime_lwt.cmi"
+  "_build/install/default/lib/sqlc-ocaml-runtime-lwt/sqlc_ocaml_runtime_lwt.cmt"
+  "_build/install/default/lib/sqlc-ocaml-runtime-lwt/sqlc_ocaml_runtime_lwt.cmx"
+  "_build/install/default/lib/sqlc-ocaml-runtime-lwt/sqlc_ocaml_runtime_lwt.cmxa"
+  "_build/install/default/lib/sqlc-ocaml-runtime-lwt/sqlc_ocaml_runtime_lwt.ml"
+]
+libexec: [
+  "_build/install/default/lib/sqlc-ocaml-runtime-lwt/sqlc_ocaml_runtime_lwt.cmxs"
+]
+doc: [
+  "_build/install/default/doc/sqlc-ocaml-runtime-lwt/README.md"
+]

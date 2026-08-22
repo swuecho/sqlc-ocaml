@@ -8,12 +8,11 @@ let fail error =
   prerr_endline (Caqti_error.show error);
   exit 1
 
-let database_pool =
-  lazy (Runtime.Pool.connect_uri_exn database_url)
+let database =
+  lazy (Runtime.Database.connect_uri_exn database_url)
 
 let with_database operation =
-  let pool = Lazy.force database_pool in
-  match Runtime.Pool.run operation pool with
+  match Runtime.Database.run (Lazy.force database) operation with
   | Ok value -> value
   | Error error -> fail error
 
