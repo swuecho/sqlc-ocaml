@@ -16,6 +16,9 @@ type todo_row = {
 
 (** Query [CreateTodo] (returns exactly one row). *)
 module CreateTodo : sig
+  (** Stable operation name declared in the SQL source. *)
+  val operation : string
+
   type params = {
     title : string;
     completed : bool;
@@ -28,10 +31,20 @@ module CreateTodo : sig
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+
+  (** Named query descriptor for database helpers. *)
+  val query :
+    string *
+    ((module Caqti_lwt.CONNECTION) ->
+     params ->
+     (row, [> Caqti_error.call_or_retrieve ]) result Lwt.t)
 end
 
 (** Query [ListTodos] (returns zero or more rows). *)
 module ListTodos : sig
+  (** Stable operation name declared in the SQL source. *)
+  val operation : string
+
   type params = unit
   type row = todo_row
 
@@ -40,6 +53,13 @@ module ListTodos : sig
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+
+  (** Named query descriptor for database helpers. *)
+  val query :
+    string *
+    ((module Caqti_lwt.CONNECTION) ->
+     params ->
+     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t)
 
   (** Fold rows without materializing the complete result list. *)
   val fold :
@@ -52,6 +72,9 @@ end
 
 (** Query [GetTodo] (returns zero or more rows). *)
 module GetTodo : sig
+  (** Stable operation name declared in the SQL source. *)
+  val operation : string
+
   type params = {
     id : int64;
   }
@@ -62,6 +85,13 @@ module GetTodo : sig
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+
+  (** Named query descriptor for database helpers. *)
+  val query :
+    string *
+    ((module Caqti_lwt.CONNECTION) ->
+     params ->
+     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t)
 
   (** Fold rows without materializing the complete result list. *)
   val fold :
@@ -74,6 +104,9 @@ end
 
 (** Query [PatchTodo] (returns zero or more rows). *)
 module PatchTodo : sig
+  (** Stable operation name declared in the SQL source. *)
+  val operation : string
+
   type params = {
     title : string option;
     completed : bool option;
@@ -88,6 +121,13 @@ module PatchTodo : sig
     params ->
     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 
+  (** Named query descriptor for database helpers. *)
+  val query :
+    string *
+    ((module Caqti_lwt.CONNECTION) ->
+     params ->
+     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t)
+
   (** Fold rows without materializing the complete result list. *)
   val fold :
     (module Caqti_lwt.CONNECTION) ->
@@ -99,6 +139,9 @@ end
 
 (** Query [DeleteTodo] (executes without returning rows). *)
 module DeleteTodo : sig
+  (** Stable operation name declared in the SQL source. *)
+  val operation : string
+
   type params = {
     id : int64;
   }
@@ -108,10 +151,20 @@ module DeleteTodo : sig
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+
+  (** Named query descriptor for database helpers. *)
+  val query :
+    string *
+    ((module Caqti_lwt.CONNECTION) ->
+     params ->
+     (unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t)
 end
 
 (** Query [DeleteAllTodos] (executes without returning rows). *)
 module DeleteAllTodos : sig
+  (** Stable operation name declared in the SQL source. *)
+  val operation : string
+
   type params = unit
 
   (** Execute [DeleteAllTodos]. *)
@@ -119,5 +172,12 @@ module DeleteAllTodos : sig
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+
+  (** Named query descriptor for database helpers. *)
+  val query :
+    string *
+    ((module Caqti_lwt.CONNECTION) ->
+     params ->
+     (unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t)
 end
 

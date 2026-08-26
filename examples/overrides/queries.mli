@@ -14,6 +14,9 @@ type user_row = {
 
 (** Query [CreateUser] (returns exactly one row). *)
 module CreateUser : sig
+  (** Stable operation name declared in the SQL source. *)
+  val operation : string
+
   type params = {
     display_name : string;
     email : Email.t option;
@@ -25,10 +28,20 @@ module CreateUser : sig
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+
+  (** Named query descriptor for database helpers. *)
+  val query :
+    string *
+    ((module Caqti_lwt.CONNECTION) ->
+     params ->
+     (row, [> Caqti_error.call_or_retrieve ]) result Lwt.t)
 end
 
 (** Query [ListUsers] (returns zero or more rows). *)
 module ListUsers : sig
+  (** Stable operation name declared in the SQL source. *)
+  val operation : string
+
   type params = unit
   type row = user_row
 
@@ -37,6 +50,13 @@ module ListUsers : sig
     (module Caqti_lwt.CONNECTION) ->
     params ->
     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+
+  (** Named query descriptor for database helpers. *)
+  val query :
+    string *
+    ((module Caqti_lwt.CONNECTION) ->
+     params ->
+     (row list, [> Caqti_error.call_or_retrieve ]) result Lwt.t)
 
   (** Fold rows without materializing the complete result list. *)
   val fold :

@@ -5,6 +5,8 @@ type numbers = {
 }
 
 module ListNumbers = struct
+  let operation = "ListNumbers"
+
   type params = unit
   type row = {
     value : int64;
@@ -37,5 +39,7 @@ ORDER BY value|sql}
 
   let fold (module Db : Caqti_async.CONNECTION) (params : params) ~init ~f =
     Db.fold request (fun raw acc -> f (decode_row raw) acc) (encode_params params) init
+
+  let query = (operation, execute)
 end
 

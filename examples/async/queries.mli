@@ -6,6 +6,9 @@ type numbers = {
 
 (** Query [ListNumbers] (returns zero or more rows). *)
 module ListNumbers : sig
+  (** Stable operation name declared in the SQL source. *)
+  val operation : string
+
   type params = unit
   type row = {
     value : int64;
@@ -16,6 +19,13 @@ module ListNumbers : sig
     (module Caqti_async.CONNECTION) ->
     params ->
     (row list, [> Caqti_error.call_or_retrieve ]) result Async_kernel.Deferred.t
+
+  (** Named query descriptor for database helpers. *)
+  val query :
+    string *
+    ((module Caqti_async.CONNECTION) ->
+     params ->
+     (row list, [> Caqti_error.call_or_retrieve ]) result Async_kernel.Deferred.t)
 
   (** Fold rows without materializing the complete result list. *)
   val fold :

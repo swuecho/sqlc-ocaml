@@ -13,6 +13,8 @@ type user_row = {
 }
 
 module CreateUser = struct
+  let operation = "CreateUser"
+
   type params = {
     display_name : string;
     email : Email.t option;
@@ -43,9 +45,13 @@ RETURNING id, display_name, email|sql}
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.find request (encode_params params)
     |> Lwt.map (Result.map decode_row)
+
+  let query = (operation, execute)
 end
 
 module ListUsers = struct
+  let operation = "ListUsers"
+
   type params = unit
   type row = user_row
 
@@ -76,5 +82,7 @@ ORDER BY id|sql}
 
   let fold (module Db : Caqti_lwt.CONNECTION) (params : params) ~init ~f =
     Db.fold request (fun raw acc -> f (decode_row raw) acc) (encode_params params) init
+
+  let query = (operation, execute)
 end
 

@@ -17,6 +17,8 @@ type todo_row = {
 }
 
 module CreateTodo = struct
+  let operation = "CreateTodo"
+
   type params = {
     title : string;
     tags : string list;
@@ -47,9 +49,13 @@ RETURNING id, title, tags, completed, created_at|sql}
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.find request (encode_params params)
     |> Lwt.map (Result.map decode_row)
+
+  let query = (operation, execute)
 end
 
 module ListTodos = struct
+  let operation = "ListTodos"
+
   type params = unit
   type row = todo_row
 
@@ -80,9 +86,13 @@ ORDER BY id|sql}
 
   let fold (module Db : Caqti_lwt.CONNECTION) (params : params) ~init ~f =
     Db.fold request (fun raw acc -> f (decode_row raw) acc) (encode_params params) init
+
+  let query = (operation, execute)
 end
 
 module ListTodosByIds = struct
+  let operation = "ListTodosByIds"
+
   type params = {
     ids : int64 list;
   }
@@ -116,9 +126,13 @@ ORDER BY id|sql}
 
   let fold (module Db : Caqti_lwt.CONNECTION) (params : params) ~init ~f =
     Db.fold request (fun raw acc -> f (decode_row raw) acc) (encode_params params) init
+
+  let query = (operation, execute)
 end
 
 module CompleteTodo = struct
+  let operation = "CompleteTodo"
+
   type params = {
     id : int64;
   }
@@ -149,9 +163,13 @@ RETURNING id, title, tags, completed, created_at|sql}
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.find request (encode_params params)
     |> Lwt.map (Result.map decode_row)
+
+  let query = (operation, execute)
 end
 
 module DeleteTodo = struct
+  let operation = "DeleteTodo"
+
   type params = {
     id : int64;
   }
@@ -172,5 +190,7 @@ WHERE id = ?|sql}
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.exec_with_affected_count request (encode_params params)
+
+  let query = (operation, execute)
 end
 

@@ -15,6 +15,8 @@ type todo_row = {
 }
 
 module CreateTodo = struct
+  let operation = "CreateTodo"
+
   type params = {
     title : string;
     completed : bool;
@@ -46,9 +48,13 @@ RETURNING todos.id, todos.title, todos.completed, todos.todo_order AS "order"|sq
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.find request (encode_params params)
     |> Lwt.map (Result.map decode_row)
+
+  let query = (operation, execute)
 end
 
 module ListTodos = struct
+  let operation = "ListTodos"
+
   type params = unit
   type row = todo_row
 
@@ -79,9 +85,13 @@ ORDER BY id|sql}
 
   let fold (module Db : Caqti_lwt.CONNECTION) (params : params) ~init ~f =
     Db.fold request (fun raw acc -> f (decode_row raw) acc) (encode_params params) init
+
+  let query = (operation, execute)
 end
 
 module GetTodo = struct
+  let operation = "GetTodo"
+
   type params = {
     id : int64;
   }
@@ -114,9 +124,13 @@ WHERE id = ?|sql}
 
   let fold (module Db : Caqti_lwt.CONNECTION) (params : params) ~init ~f =
     Db.fold request (fun raw acc -> f (decode_row raw) acc) (encode_params params) init
+
+  let query = (operation, execute)
 end
 
 module PatchTodo = struct
+  let operation = "PatchTodo"
+
   type params = {
     title : string option;
     completed : bool option;
@@ -155,9 +169,13 @@ RETURNING todos.id, todos.title, todos.completed, todos.todo_order AS "order"|sq
 
   let fold (module Db : Caqti_lwt.CONNECTION) (params : params) ~init ~f =
     Db.fold request (fun raw acc -> f (decode_row raw) acc) (encode_params params) init
+
+  let query = (operation, execute)
 end
 
 module DeleteTodo = struct
+  let operation = "DeleteTodo"
+
   type params = {
     id : int64;
   }
@@ -177,9 +195,13 @@ module DeleteTodo = struct
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.exec request (encode_params params)
+
+  let query = (operation, execute)
 end
 
 module DeleteAllTodos = struct
+  let operation = "DeleteAllTodos"
+
   type params = unit
 
   let sql =
@@ -197,5 +219,7 @@ module DeleteAllTodos = struct
 
   let execute (module Db : Caqti_lwt.CONNECTION) (params : params) =
     Db.exec request (encode_params params)
+
+  let query = (operation, execute)
 end
 
