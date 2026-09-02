@@ -65,7 +65,7 @@ func TestGenerateMVP(t *testing.T) {
 	}
 	ml := string(resp.Files[0].Contents)
 	mli := string(resp.Files[1].Contents)
-	for _, want := range []string{"module FindUser = struct", "let operation = \"FindUser\"", "let query = (operation, execute)", "email : string option;", "status : user_status;", "->!", "->*", "->.", "Db.collect_list", "let fold", "Db.fold request", "{sql|SELECT id, email, status FROM users WHERE id = ?|sql}", "let params_type =", "let row_type =", "let encode_params", "let decode_row", ") sql"} {
+	for _, want := range []string{"type ('params, 'result, 'cardinality) query =", "module FindUser = struct", "let operation = \"FindUser\"", "let query = One (operation, execute)", "let query = Many (operation, execute)", "let query = Exec (operation, execute)", "email : string option;", "status : user_status;", "->!", "->*", "->.", "Db.collect_list", "let fold", "Db.fold request", "{sql|SELECT id, email, status FROM users WHERE id = ?|sql}", "let params_type =", "let row_type =", "let encode_params", "let decode_row", ") sql"} {
 		if !strings.Contains(ml, want) {
 			t.Errorf("ML missing %q", want)
 		}
@@ -79,7 +79,7 @@ func TestGenerateMVP(t *testing.T) {
 	if got, want := strings.Count(ml, ") sql"), len(request().Queries); got != want {
 		t.Errorf("generated %d requests using extracted SQL, want %d", got, want)
 	}
-	for _, want := range []string{"(** Query [FindUser] (returns exactly one row). *)", "module FindUser : sig", "val operation : string", "val query :", "string *", "(row, [> Caqti_error.call_or_retrieve ]) result Lwt.t", "(unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t"} {
+	for _, want := range []string{"(** Query [FindUser] (returns exactly one row). *)", "module FindUser : sig", "val operation : string", "val query : (params, row, one) query", "val query : (params, row list, many) query", "val query : (params, unit, exec) query", "(row, [> Caqti_error.call_or_retrieve ]) result Lwt.t", "(unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t"} {
 		if !strings.Contains(mli, want) {
 			t.Errorf("MLI missing %q", want)
 		}
@@ -90,10 +90,10 @@ func TestGenerateMVP(t *testing.T) {
 	if got, want := strings.Count(mli, "  val operation : string\n"), len(request().Queries); got != want {
 		t.Errorf("generated %d public operation values, want one for each of %d query modules", got, want)
 	}
-	if got, want := strings.Count(ml, "  let query = (operation, execute)\n"), len(request().Queries); got != want {
+	if got, want := strings.Count(ml, " (operation, execute)\n"), len(request().Queries); got != want {
 		t.Errorf("generated %d query descriptors, want one for each of %d query modules", got, want)
 	}
-	if got, want := strings.Count(mli, "  val query :\n"), len(request().Queries); got != want {
+	if got, want := strings.Count(mli, "  val query : (params,"), len(request().Queries); got != want {
 		t.Errorf("generated %d public query descriptors, want one for each of %d query modules", got, want)
 	}
 }

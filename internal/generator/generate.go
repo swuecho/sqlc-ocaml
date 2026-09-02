@@ -425,7 +425,7 @@ func (g *gen) renderQuery(ml, mli *bytes.Buffer, q Query) {
 			fmt.Fprintf(ml, "\n  let fold (module Db : %s) (params : params) ~init ~f =\n    Db.fold request (fun raw acc -> f (decode_row raw) acc) (encode_params params) init\n", connection)
 		}
 	}
-	fmt.Fprint(ml, "\n  let query = (operation, execute)\n")
+	fmt.Fprintf(ml, "\n  let query = %s (operation, execute)\n", cardinalityConstructor(q.Cardinality))
 	fmt.Fprint(ml, "end\n\n")
 	errorType := "[> Caqti_error.call_or_retrieve ]"
 	if q.Cardinality == ExecRows {
@@ -434,12 +434,38 @@ func (g *gen) renderQuery(ml, mli *bytes.Buffer, q Query) {
 	fmt.Fprintf(mli, "\n  (** Execute [%s]. *)", q.SourceName)
 	fmt.Fprintf(mli, "\n  val execute :\n    (module %s) ->\n    params ->\n    (%s, %s) result %s\n", connection, result, errorType, fiber)
 	fmt.Fprint(mli, "\n  (** Named query descriptor for database helpers. *)")
-	fmt.Fprintf(mli, "\n  val query :\n    string *\n    ((module %s) ->\n     params ->\n     (%s, %s) result %s)\n", connection, result, errorType, fiber)
+	fmt.Fprintf(mli, "\n  val query : (params, %s, %s) query\n", result, cardinalityType(q.Cardinality))
 	if q.Cardinality == Many {
 		fmt.Fprint(mli, "\n  (** Fold rows without materializing the complete result list. *)")
 		fmt.Fprintf(mli, "\n  val fold :\n    (module %s) ->\n    params ->\n    init:'a ->\n    f:(row -> 'a -> 'a) ->\n    ('a, %s) result %s\n", connection, errorType, fiber)
 	}
 	fmt.Fprint(mli, "end\n\n")
+}
+
+func cardinalityConstructor(cardinality Cardinality) string {
+	switch cardinality {
+	case One:
+		return "One"
+	case Many:
+		return "Many"
+	case ExecRows:
+		return "Exec_rows"
+	default:
+		return "Exec"
+	}
+}
+
+func cardinalityType(cardinality Cardinality) string {
+	switch cardinality {
+	case One:
+		return "one"
+	case Many:
+		return "many"
+	case ExecRows:
+		return "exec_rows"
+	default:
+		return "exec"
+	}
 }
 
 func ocamlQuotedString(value string) string {
