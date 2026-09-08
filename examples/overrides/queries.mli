@@ -28,7 +28,7 @@ type ('params, 'result, 'cardinality) query =
       (string *
        ((module Caqti_lwt.CONNECTION) ->
         'params ->
-        ('result, Caqti_error.t) result Lwt.t)) ->
+        ('result, [ Caqti_error.t | `Unsupported ]) result Lwt.t)) ->
       ('params, 'result, exec_rows) query
 
 type users = {

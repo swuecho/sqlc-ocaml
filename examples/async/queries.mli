@@ -28,7 +28,7 @@ type ('params, 'result, 'cardinality) query =
       (string *
        ((module Caqti_async.CONNECTION) ->
         'params ->
-        ('result, Caqti_error.t) result Async_kernel.Deferred.t)) ->
+        ('result, [ Caqti_error.t | `Unsupported ]) result Async_kernel.Deferred.t)) ->
       ('params, 'result, exec_rows) query
 
 type numbers = {

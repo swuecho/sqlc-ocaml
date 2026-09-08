@@ -316,6 +316,50 @@ func TestGenerateExecRows(t *testing.T) {
 	}
 }
 
+func TestGeneratedExecRowsTypechecks(t *testing.T) {
+	if _, err := exec.LookPath("ocamlfind"); err != nil {
+		t.Skip("ocamlfind is not installed")
+	}
+	for _, runtime := range []string{"lwt", "async"} {
+		t.Run(runtime, func(t *testing.T) {
+			pkg := "caqti-" + runtime
+			if err := exec.Command("ocamlfind", "query", pkg).Run(); err != nil {
+				t.Skipf("%s is not installed", pkg)
+			}
+			r := request()
+			r.PluginOptions, _ = json.Marshal(Options{Runtime: runtime})
+			r.Queries = []*plugin.Query{{
+				Name: "DeleteUsers", Cmd: ":execrows", Text: "DELETE FROM users WHERE disabled = $1",
+				Params: []*plugin.Parameter{{Number: 1, Column: col("disabled", "bool", true)}},
+			}}
+			resp, err := Generate(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			dir := t.TempDir()
+			for _, file := range resp.Files {
+				if err := os.WriteFile(filepath.Join(dir, file.Name), file.Contents, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			// Compile the interface first, then check that the implementation's
+			// descriptor accepts exec_with_affected_count's Unsupported error.
+			for _, ext := range []string{".mli", ".ml"} {
+				for _, file := range resp.Files {
+					if filepath.Ext(file.Name) != ext {
+						continue
+					}
+					cmd := exec.Command("ocamlfind", "ocamlc", "-thread", "-package", pkg, "-c", file.Name)
+					cmd.Dir = dir
+					if out, err := cmd.CombinedOutput(); err != nil {
+						t.Fatalf("%s does not typecheck: %v\n%s", file.Name, err, out)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestGenerateEmbeddedModels(t *testing.T) {
 	r := request()
 	students := &plugin.Table{Rel: ident("students"), Columns: []*plugin.Column{col("id", "bigint", true), col("name", "text", true)}}
