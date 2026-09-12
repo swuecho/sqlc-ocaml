@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hwu/sqlc-ocaml/internal/plugin"
+	"github.com/swuecho/sqlc-ocaml/internal/plugin"
 )
 
 type mappedType struct{ OCaml, Codec string }
@@ -19,8 +19,8 @@ var postgresTypes = map[string]mappedType{
 	"text": {"string", "Caqti_type.string"}, "varchar": {"string", "Caqti_type.string"}, "character varying": {"string", "Caqti_type.string"},
 	"char": {"string", "Caqti_type.string"}, "bpchar": {"string", "Caqti_type.string"}, "character": {"string", "Caqti_type.string"},
 	"bytea":     {"string", "Caqti_type.octets"},
-	"uuid":      {"Uuidm.t", "Caqti_type.uuid"},
-	"date":      {"Ptime.date", "Caqti_type.date"},
+	"uuid":      {"Uuidm.t", `Caqti_type.(custom ~encode:(fun x -> Ok (Uuidm.to_string x)) ~decode:(fun s -> match Uuidm.of_string s with Some x -> Ok x | None -> Error ("invalid uuid: " ^ s)) string)`},
+	"date":      {"Ptime.date", `Caqti_type.(custom ~encode:(fun x -> match Ptime.of_date x with Some t -> Ok t | None -> Error "invalid date") ~decode:(fun t -> Ok (Ptime.to_date t)) pdate)`},
 	"timestamp": {"Ptime.t", "Caqti_type.ptime"}, "timestamp without time zone": {"Ptime.t", "Caqti_type.ptime"},
 	"timestamptz": {"Ptime.t", "Caqti_type.ptime"}, "timestamp with time zone": {"Ptime.t", "Caqti_type.ptime"},
 	"json":    {"Yojson.Safe.t", "Caqti_type.(custom ~encode:(fun x -> Ok (Yojson.Safe.to_string x)) ~decode:(fun x -> try Ok (Yojson.Safe.from_string x) with Yojson.Json_error e -> Error e) string)"},

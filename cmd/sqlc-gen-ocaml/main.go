@@ -6,8 +6,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/hwu/sqlc-ocaml/internal/generator"
-	"github.com/hwu/sqlc-ocaml/internal/plugin"
+	"github.com/swuecho/sqlc-ocaml/internal/generator"
+	"github.com/swuecho/sqlc-ocaml/internal/plugin"
 )
 
 func main() {

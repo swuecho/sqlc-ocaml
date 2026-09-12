@@ -1,6 +1,5 @@
 /bin/
 /sqlc-gen-ocaml
-/_build/
 /.cache/
-/examples/todo/_build/
-/examples/todo_backend/_build/
+_build/
+*.install

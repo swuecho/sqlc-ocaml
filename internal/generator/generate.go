@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/hwu/sqlc-ocaml/internal/plugin"
+	"github.com/swuecho/sqlc-ocaml/internal/plugin"
 )
 
 type Override struct {
@@ -198,7 +198,7 @@ type ('params, 'result, 'cardinality) query =
       (string *
        ((module %s) ->
         'params ->
-        ('result, [ Caqti_error.t | ` + "`Unsupported" + ` ]) result %s)) ->
+        ('result, [ Caqti_error.t | `+"`Unsupported"+` ]) result %s)) ->
       ('params, 'result, exec_rows) query
 
 `, connection, fiber, connection, fiber, connection, fiber, connection, fiber)

@@ -5,6 +5,22 @@ and reusing Caqti connection pools. Generated query modules continue to accept
 a connection explicitly, so they also work with transactions and direct
 connections.
 
+## Installation
+
+From a checkout of this repository, install the package for the runtime you
+use. The Lwt package only needs `caqti-lwt`; the Async package additionally
+needs `caqti-async`.
+
+```sh
+cd runtime
+opam exec -- dune build -p sqlc-ocaml-runtime-lwt @install
+opam exec -- dune install -p sqlc-ocaml-runtime-lwt
+```
+
+Replace `lwt` with `async` (and install `caqti-async` first) for the Async
+package. The Docker example image installs both packages from the `runtime`
+directory, so `docker/example-base.Dockerfile` is a working reference.
+
 ## Lwt
 
 Add `sqlc-ocaml-runtime-lwt` to the executable's Dune libraries:

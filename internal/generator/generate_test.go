@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hwu/sqlc-ocaml/internal/plugin"
+	"github.com/swuecho/sqlc-ocaml/internal/plugin"
 )
 
 func ident(name string) *plugin.Identifier { return &plugin.Identifier{Name: name} }
@@ -357,6 +357,81 @@ func TestGeneratedExecRowsTypechecks(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestGeneratedBuiltinTypesTypecheck compiles generated code for every
+// PostgreSQL type the generator maps by default. It guards against emitting a
+// Caqti codec which does not exist (for example the previous Caqti_type.uuid
+// and Caqti_type.date references).
+func TestGeneratedBuiltinTypesTypecheck(t *testing.T) {
+	if _, err := exec.LookPath("ocamlfind"); err != nil {
+		t.Skip("ocamlfind is not installed")
+	}
+	packages := []string{"caqti-lwt", "ptime", "uuidm", "yojson"}
+	for _, pkg := range packages {
+		if err := exec.Command("ocamlfind", "query", pkg).Run(); err != nil {
+			t.Skipf("%s is not installed", pkg)
+		}
+	}
+	scalars := []struct{ name, typ string }{
+		{"c_bool", "bool"}, {"c_int2", "smallint"}, {"c_int4", "integer"}, {"c_int8", "bigint"},
+		{"c_float4", "real"}, {"c_float8", "double precision"}, {"c_text", "text"},
+		{"c_varchar", "character varying"}, {"c_bytea", "bytea"}, {"c_uuid", "uuid"},
+		{"c_date", "date"}, {"c_timestamp", "timestamp"}, {"c_timestamptz", "timestamptz"},
+		{"c_json", "json"}, {"c_jsonb", "jsonb"}, {"c_numeric", "numeric"}, {"c_status", "user_status"},
+	}
+	columns := make([]*plugin.Column, 0, len(scalars)+4)
+	for _, scalar := range scalars {
+		columns = append(columns, col(scalar.name, scalar.typ, true))
+	}
+	for _, array := range []struct{ name, typ string }{{"c_arr_int8", "bigint"}, {"c_arr_text", "text"}, {"c_arr_uuid", "uuid"}, {"c_arr_status", "user_status"}} {
+		c := col(array.name, array.typ, true)
+		c.IsArray = true
+		c.ArrayDims = 1
+		columns = append(columns, c)
+	}
+	r := request()
+	r.Catalog.Schemas[0].Tables = []*plugin.Table{{Rel: ident("things"), Columns: columns}}
+	r.Queries = []*plugin.Query{
+		{Name: "ListThings", Cmd: ":many", Text: "SELECT * FROM things", Columns: columns},
+		{Name: "GetThing", Cmd: ":one", Text: "SELECT * FROM things WHERE c_bool = $1", Columns: columns, Params: []*plugin.Parameter{{Number: 1, Column: col("c_bool", "bool", true)}}},
+		{Name: "DeleteThing", Cmd: ":execrows", Text: "DELETE FROM things WHERE c_bool = $1", Params: []*plugin.Parameter{{Number: 1, Column: col("c_bool", "bool", true)}}},
+		{Name: "ClearThings", Cmd: ":exec", Text: "DELETE FROM things"},
+	}
+	resp, err := Generate(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ml := string(resp.Files[0].Contents)
+	for _, want := range []string{"Uuidm.to_string", "Uuidm.of_string", "Ptime.of_date", "Ptime.to_date", "pdate"} {
+		if !strings.Contains(ml, want) {
+			t.Errorf("generated ML missing uuid/date codec output %q", want)
+		}
+	}
+	for _, unwanted := range []string{"Caqti_type.uuid", "Caqti_type.date"} {
+		if strings.Contains(ml, unwanted) {
+			t.Errorf("generated ML contains nonexistent Caqti codec %q", unwanted)
+		}
+	}
+	dir := t.TempDir()
+	for _, file := range resp.Files {
+		if err := os.WriteFile(filepath.Join(dir, file.Name), file.Contents, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	deps := strings.Join(packages, ",")
+	for _, ext := range []string{".mli", ".ml"} {
+		for _, file := range resp.Files {
+			if filepath.Ext(file.Name) != ext {
+				continue
+			}
+			cmd := exec.Command("ocamlfind", "ocamlc", "-thread", "-package", deps, "-c", file.Name)
+			cmd.Dir = dir
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("%s does not typecheck: %v\n%s", file.Name, err, out)
+			}
+		}
 	}
 }
 

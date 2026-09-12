@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hwu/sqlc-ocaml/internal/plugin"
+	"github.com/swuecho/sqlc-ocaml/internal/plugin"
 )
 
 // Program is the normalized, protocol-independent view consumed by the OCaml

@@ -25,9 +25,41 @@ Repeated and out-of-order PostgreSQL placeholders are supported through an
 explicit typed parameter-occurrence plan;
 MVP queries must still reference every declared parameter at least once.
 
-## Build and configure
+## Type mapping
+
+| PostgreSQL | OCaml |
+| --- | --- |
+| `bool` | `bool` |
+| `smallint`, `int2` | `int` |
+| `integer`, `int4`, `serial` | `int32` |
+| `bigint`, `int8`, `bigserial` | `int64` |
+| `real`, `float4`, `double precision`, `float8` | `float` |
+| `text`, `varchar`, `character`, `bpchar` | `string` |
+| `bytea` | `string` (octets) |
+| `uuid` | `Uuidm.t` |
+| `date` | `Ptime.date` |
+| `timestamp`, `timestamptz` | `Ptime.t` |
+| `json`, `jsonb` | `Yojson.Safe.t` |
+| `numeric`, `decimal` | `string` (use an override for a decimal type) |
+| enum | generated variant type |
+| one-dimensional array of a supported element | `'a list` |
+
+Nullable columns wrap the OCaml type in `option` and the Caqti codec in
+`Caqti_type.option`. Import `ptime`, `uuidm`, and `yojson` when the mapped
+columns use them.
+
+## Install and configure
+
+Prebuilt `sqlc-gen-ocaml` archives for Linux, macOS, and Windows (amd64 and
+arm64) are attached to each [release](https://github.com/swuecho/sqlc-ocaml/releases).
+Extract the archive for your platform and point the plugin `process.cmd` at the
+executable.
+
+With a Go toolchain you can install or build the plugin from source:
 
 ```sh
+go install github.com/swuecho/sqlc-ocaml/cmd/sqlc-gen-ocaml@latest
+# or, from a checkout:
 go build -o sqlc-gen-ocaml ./cmd/sqlc-gen-ocaml
 ```
 
