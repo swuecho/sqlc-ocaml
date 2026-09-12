@@ -64,6 +64,7 @@ type Record struct {
 
 type Field struct {
 	DatabaseName string
+	Table        string
 	Name         string
 	Type         OCamlType
 	Embedded     *Record
@@ -172,14 +173,31 @@ func (g *gen) normalize() (Program, error) {
 		seen[query.ModuleName] = true
 		program.Queries = append(program.Queries, query)
 	}
-	shareIdenticalRows(&program, g.req.Queries, typeNames)
+	tableColumns := map[string]map[string]bool{}
+	if g.req.Catalog != nil {
+		for _, schema := range g.req.Catalog.Schemas {
+			for _, table := range schema.Tables {
+				if table == nil || table.Rel == nil {
+					continue
+				}
+				columns := map[string]bool{}
+				for _, column := range table.Columns {
+					if column != nil {
+						columns[strings.ToLower(column.Name)] = true
+					}
+				}
+				tableColumns[strings.ToLower(table.Rel.Name)] = columns
+			}
+		}
+	}
+	shareIdenticalRows(&program, g.req.Queries, typeNames, tableColumns)
 	return program, nil
 }
 
 // shareIdenticalRows hoists result records used by multiple queries. OCaml
 // records are nominal, so aliases to a shared top-level record let callers use
 // one function for queries returning the same projection.
-func shareIdenticalRows(program *Program, sources []*plugin.Query, typeNames map[string]string) {
+func shareIdenticalRows(program *Program, sources []*plugin.Query, typeNames map[string]string, tableColumns map[string]map[string]bool) {
 	groups := map[string][]int{}
 	for i, query := range program.Queries {
 		if query.Row != nil {
@@ -201,7 +219,7 @@ func shareIdenticalRows(program *Program, sources []*plugin.Query, typeNames map
 			continue
 		}
 		first := i
-		name := sharedRowName(sources[first], program.Queries[first])
+		name := sharedRowName(sources[first], program.Queries[first], tableColumns)
 		base := name
 		for suffix := 2; typeNames[name] != ""; suffix++ {
 			name = fmt.Sprintf("%s_%d", base, suffix)
@@ -219,33 +237,95 @@ func shareIdenticalRows(program *Program, sources []*plugin.Query, typeNames map
 func recordShape(record Record) string {
 	var b strings.Builder
 	for _, field := range record.Fields {
-		fmt.Fprintf(&b, "%d:%s%d:%s;", len(field.Name), field.Name, len(field.Type.Name), field.Type.Name)
+		fmt.Fprintf(&b, "%s|%d:%s%d:%s;", strings.ToLower(field.Table), len(field.Name), field.Name, len(field.Type.Name), field.Type.Name)
 	}
 	return b.String()
 }
 
-func sharedRowName(source *plugin.Query, query Query) string {
-	var table string
+func sharedRowName(source *plugin.Query, query Query, tableColumns map[string]map[string]bool) string {
+	// Use the table name only for a projection of exactly that table's columns.
+	// Partial projections and aggregates fall back to the first query's name so
+	// the type is not mislabelled after the table.
+	if table := commonTable(source); table != "" {
+		if columns := tableColumns[strings.ToLower(table)]; columns != nil && fullTableProjection(source, columns) {
+			return singularize(snake(table)) + "_row"
+		}
+	}
+	return snake(query.SourceName) + "_row"
+}
+
+// commonTable returns the single table every projected column comes from, or ""
+// when the projection spans tables or a column has no table.
+func commonTable(source *plugin.Query) string {
+	table := ""
 	for _, column := range source.Columns {
 		if column == nil || column.Table == nil || column.Table.Name == "" {
-			table = ""
-			break
+			return ""
 		}
 		if table == "" {
 			table = column.Table.Name
 		} else if !strings.EqualFold(table, column.Table.Name) {
-			table = ""
-			break
+			return ""
 		}
 	}
-	if table != "" {
-		name := snake(table)
-		if strings.HasSuffix(name, "s") && !strings.HasSuffix(name, "ss") {
-			name = strings.TrimSuffix(name, "s")
+	return table
+}
+
+// fullTableProjection reports whether the query selects every column of the
+// table (aliases included, matched via the original column name).
+func fullTableProjection(source *plugin.Query, columns map[string]bool) bool {
+	seen := map[string]bool{}
+	for _, column := range source.Columns {
+		if column == nil {
+			return false
 		}
-		return name + "_row"
+		name := column.OriginalName
+		if name == "" {
+			name = column.Name
+		}
+		if !columns[strings.ToLower(name)] {
+			return false
+		}
+		seen[strings.ToLower(name)] = true
 	}
-	return snake(query.SourceName) + "_row"
+	return len(seen) == len(columns)
+}
+
+var irregularPlurals = map[string]string{
+	"people": "person",
+	"children": "child",
+	"men": "man",
+	"women": "woman",
+	"teeth": "tooth",
+	"feet": "foot",
+	"mice": "mouse",
+	"geese": "goose",
+}
+
+// singularize turns a table name into an OCaml-friendly singular form. It only
+// handles the regular English cases plus a few common irregulars; unknown names
+// are returned unchanged.
+func singularize(name string) string {
+	if singular, ok := irregularPlurals[name]; ok {
+		return singular
+	}
+	switch {
+	case strings.HasSuffix(name, "ies") && len(name) > 3:
+		return name[:len(name)-3] + "y"
+	case strings.HasSuffix(name, "sses"),
+		strings.HasSuffix(name, "shes"),
+		strings.HasSuffix(name, "ches"),
+		strings.HasSuffix(name, "xes"),
+		strings.HasSuffix(name, "zes"):
+		return name[:len(name)-2]
+	case strings.HasSuffix(name, "s"),
+		!strings.HasSuffix(name, "ss"),
+		!strings.HasSuffix(name, "us"),
+		!strings.HasSuffix(name, "is"):
+		return name[:len(name)-1]
+	default:
+		return name
+	}
 }
 
 func (g *gen) normalizeQuery(source *plugin.Query) (Query, error) {
@@ -357,7 +437,11 @@ func (g *gen) normalizeRecord(typeName string, columns []*plugin.Column) (Record
 		if err != nil {
 			return Record{}, err
 		}
-		record.Fields[i] = Field{DatabaseName: column.Name, Name: names[i], Type: normalizedOCamlType(column, mapped)}
+		table := ""
+		if column.Table != nil {
+			table = column.Table.Name
+		}
+		record.Fields[i] = Field{DatabaseName: column.Name, Table: table, Name: names[i], Type: normalizedOCamlType(column, mapped)}
 	}
 	return record, nil
 }

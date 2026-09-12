@@ -107,6 +107,15 @@ func TestIdenticalQueryRowsUseSharedType(t *testing.T) {
 			{Name: "title", Type: ident("text"), NotNull: true, Table: table},
 		}
 	}
+	// The generator only derives `todo_row` from the table name for a full-table
+	// projection, so the catalog must describe the table.
+	r.Catalog = &plugin.Catalog{Schemas: []*plugin.Schema{{
+		Name: "public",
+		Tables: []*plugin.Table{{
+			Rel:     ident("todos"),
+			Columns: []*plugin.Column{{Name: "id", Type: ident("bigint"), NotNull: true}, {Name: "title", Type: ident("text"), NotNull: true}},
+		}},
+	}}}
 	r.Queries = []*plugin.Query{
 		{Name: "ListTodos", Cmd: ":many", Text: "SELECT id, title FROM todos", Columns: columns()},
 		{Name: "GetTodo", Cmd: ":one", Text: "SELECT id, title FROM todos", Columns: columns()},
@@ -123,6 +132,67 @@ func TestIdenticalQueryRowsUseSharedType(t *testing.T) {
 		if got := strings.Count(output, "  type row = todo_row"); got != 2 {
 			t.Errorf("row alias count = %d, want 2", got)
 		}
+	}
+}
+
+func TestSharedRowNamingAndIsolation(t *testing.T) {
+	r := request()
+	table := func(name string) *plugin.Identifier { return ident(name) }
+	r.Catalog = &plugin.Catalog{Schemas: []*plugin.Schema{{
+		Name: "public",
+		Tables: []*plugin.Table{
+			{Rel: ident("todos"), Columns: []*plugin.Column{
+				{Name: "id", Type: ident("bigint"), NotNull: true},
+				{Name: "title", Type: ident("text"), NotNull: true},
+				{Name: "done", Type: ident("bool"), NotNull: true},
+			}},
+			{Rel: ident("notes"), Columns: []*plugin.Column{{Name: "tag", Type: ident("text"), NotNull: true}}},
+			{Rel: ident("labels"), Columns: []*plugin.Column{{Name: "tag", Type: ident("text"), NotNull: true}}},
+		},
+	}}}
+	full := func() []*plugin.Column {
+		return []*plugin.Column{
+			{Name: "id", Type: ident("bigint"), NotNull: true, Table: table("todos")},
+			{Name: "title", Type: ident("text"), NotNull: true, Table: table("todos")},
+			{Name: "done", Type: ident("bool"), NotNull: true, Table: table("todos")},
+		}
+	}
+	titleOnly := func() []*plugin.Column {
+		return []*plugin.Column{{Name: "title", Type: ident("text"), NotNull: true, Table: table("todos")}}
+	}
+	tagFrom := func(name string) []*plugin.Column {
+		return []*plugin.Column{{Name: "tag", Type: ident("text"), NotNull: true, Table: table(name)}}
+	}
+	r.Queries = []*plugin.Query{
+		{Name: "ListTodos", Cmd: ":many", Text: "SELECT id, title, done FROM todos", Columns: full()},
+		{Name: "GetTodo", Cmd: ":one", Text: "SELECT id, title, done FROM todos", Columns: full()},
+		{Name: "ListTodoTitles", Cmd: ":many", Text: "SELECT title FROM todos", Columns: titleOnly()},
+		{Name: "FindTodoTitle", Cmd: ":one", Text: "SELECT title FROM todos", Columns: titleOnly()},
+		{Name: "ListNoteTags", Cmd: ":many", Text: "SELECT tag FROM notes", Columns: tagFrom("notes")},
+		{Name: "ListLabelTags", Cmd: ":many", Text: "SELECT tag FROM labels", Columns: tagFrom("labels")},
+	}
+	resp, err := Generate(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ml := string(resp.Files[0].Contents)
+	// A full-table projection takes the singularized table name.
+	if got := strings.Count(ml, "type todo_row = {"); got != 1 {
+		t.Errorf("full-table shared row count = %d, want 1", got)
+	}
+	if got := strings.Count(ml, "  type row = todo_row"); got != 2 {
+		t.Errorf("full-table aliases = %d, want 2", got)
+	}
+	// A partial projection is named after the query, not the table.
+	if !strings.Contains(ml, "type list_todo_titles_row = {") {
+		t.Errorf("partial projection is not named after the query:\n%s", ml)
+	}
+	if strings.Contains(ml, "type todo_title_row") {
+		t.Errorf("partial projection took the table name:\n%s", ml)
+	}
+	// Identical single-column projections from different tables must not share.
+	if got := strings.Count(ml, "type tag_row"); got != 0 {
+		t.Errorf("cross-table projections shared a type (count %d)", got)
 	}
 }
 

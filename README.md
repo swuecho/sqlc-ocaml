@@ -48,6 +48,24 @@ Nullable columns wrap the OCaml type in `option` and the Caqti codec in
 `Caqti_type.option`. Import `ptime`, `uuidm`, and `yojson` when the mapped
 columns use them.
 
+## Generated names
+
+- Table models keep the table name (`registry_entries`).
+- A query that projects exactly one table's columns is shared as
+  `<singular table>_row` (`registry_entries` → `registry_entry_row`,
+  `todos` → `todo_row`). Singularization handles `-ies` (`entries` → `entry`),
+  `-sses`/`-shes`/`-ches`/`-xes`/`-zes`, and a few irregulars (`people`,
+  `children`).
+- Any other result — a partial projection or an aggregate — is named
+  `<first query>_row`. A shape is only shared when the field names, types, and
+  **source tables** match, so identical projections from different tables stay
+  distinct instead of aliasing one another.
+
+The generated `query` GADT declares an `exec_rows` cardinality whose error type
+is `[ Caqti_error.t | \`Unsupported ]`, because Caqti's
+`exec_with_affected_count` can report an unsupported backend. A consumer's
+shared `QUERIES` module type must declare that same error type for `Exec_rows`.
+
 ## Install and configure
 
 Prebuilt `sqlc-gen-ocaml` archives for Linux, macOS, and Windows (amd64 and
